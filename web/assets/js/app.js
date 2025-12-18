@@ -25,7 +25,7 @@ form.addEventListener("submit", async (e) => {
 
   messageEl.value = "";
 
-  const working = addBubble("assistant", "Working...");
+  const working = addBubble("assistant", "Analyzing logs… running diagnostics…");
 
   try {
     if (!window.BACKEND_URL || window.BACKEND_URL.includes("YOUR_RENDER_BACKEND_URL")) {
