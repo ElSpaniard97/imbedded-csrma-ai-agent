@@ -5,9 +5,11 @@ import OpenAI from "openai";
 
 const app = express();
 
-// CORS: For now, allow all origins so your GitHub Pages can reach it.
-// After you confirm the site works, restrict this to your GitHub Pages domain.
-app.use(cors({ origin: true }));
+app.use(cors({
+  origin: [
+    "https://elspaniard97.github.io/imbedded-csrma-ai-agent/"
+  ]
+}));
 
 app.use(express.json({ limit: "2mb" }));
 
