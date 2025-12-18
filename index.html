@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>AI Infrastructure Troubleshooting</title>
-  <meta name="description" content="Diagnostics-first. Approval-gated remediation. Paste logs, errors, scripts, or upload screenshots." />
+  <meta name="description" content="Diagnostics-first. Approval-gated remediation. Paste logs/scripts or upload screenshots." />
   <link rel="stylesheet" href="./assets/css/main.css" />
 </head>
 <body>
@@ -12,10 +12,34 @@
     <header class="top">
       <div class="brand">
         <div class="mark">AI</div>
-        <div>
+        <div class="brandText">
           <h1>Infrastructure Troubleshooting</h1>
           <p>Diagnostics-first. Approval-gated remediation. Paste logs/scripts or upload screenshots.</p>
         </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="mode">
+          <span class="pill" id="modePill">Mode: Diagnostics</span>
+          <label class="toggle">
+            <input type="checkbox" id="approveToggle" />
+            <span class="toggleUi"></span>
+            <span class="toggleText">Remediation approved</span>
+          </label>
+        </div>
+
+        <div class="actions">
+          <button class="btn secondary" type="button" id="copyTicketBtn">Copy Ticket Notes</button>
+          <button class="btn secondary" type="button" id="exportTxtBtn">Export TXT</button>
+          <button class="btn secondary" type="button" id="exportJsonBtn">Export JSON</button>
+        </div>
+      </div>
+
+      <div class="presets" aria-label="Preset prompts">
+        <button class="chip" type="button" data-preset="network">Network</button>
+        <button class="chip" type="button" data-preset="server">Server</button>
+        <button class="chip" type="button" data-preset="script">Script</button>
+        <button class="chip" type="button" data-preset="hardware">Hardware</button>
       </div>
     </header>
 
@@ -28,17 +52,19 @@
       </label>
 
       <textarea id="message" class="input" rows="3"
-        placeholder="Describe the issue or paste logs/errors/scripts. Example: 'Interface flapping on switch uplink...' or paste a traceback."
+        placeholder="Describe the issue or paste logs/errors/scripts. Use the preset chips for a structured template."
         required></textarea>
 
-      <button class="btn" type="submit">Send</button>
+      <button class="btn primary" type="submit" id="sendBtn">Send</button>
     </form>
 
     <footer class="foot">
       <div class="muted">
-        Do not paste secrets (keys/passwords). Use ticket-safe output.
+        Do not paste secrets (keys/passwords). Copy-to-ticket produces ticket-safe notes.
       </div>
     </footer>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </main>
 
   <script>
