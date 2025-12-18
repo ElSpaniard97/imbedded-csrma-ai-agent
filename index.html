@@ -6,10 +6,10 @@
   <title>AI Infrastructure Troubleshooting</title>
   <meta name="description" content="Diagnostics-first. Approval-gated remediation. Paste logs/scripts or upload screenshots." />
 
-  <!-- CSS (must exist at /assets/css/main.css in repo root) -->
-  <link rel="stylesheet" href="./assets/css/main.css?v=1" />
+  <!-- CSS -->
+  <link rel="stylesheet" href="./assets/css/main.css?v=2" />
 
-  <!-- If CSS fails to load, the page will look unstyled. This provides a visible hint. -->
+  <!-- Preflight styles (shows a helpful message if CSS/JS fail to load) -->
   <style>
     .preflight {
       margin: 14px 0;
@@ -28,8 +28,8 @@
       padding: 2px 6px;
       border-radius: 8px;
     }
-    /* Hide the preflight box once JS confirms it loaded */
     .hidden { display: none !important; }
+    h2 { margin: 0 0 8px 0; font-size: 16px; letter-spacing: -0.01em; }
   </style>
 </head>
 
@@ -46,11 +46,11 @@
 
       <noscript>
         <div class="preflight">
-          <strong>JavaScript is disabled.</strong> This app requires JavaScript for buttons, chat, and uploads.
+          <strong>JavaScript is disabled.</strong> This app requires JavaScript for login, buttons, chat, and uploads.
         </div>
       </noscript>
 
-      <!-- Visible warning if assets fail to load (JS will hide when it runs) -->
+      <!-- Visible warning if assets fail to load (JS hides this when it runs) -->
       <div id="preflight" class="preflight">
         <strong>Loading checks:</strong>
         If this message stays visible and the page looks plain or buttons don’t work,
@@ -60,13 +60,43 @@
       </div>
     </header>
 
+    <!-- AUTH / LOGIN CARD -->
+    <section class="card" id="authCard" aria-label="Authentication">
+      <h2>Sign in</h2>
+      <p style="margin:0 0 12px 0; color: rgba(255,255,255,.65);">
+        Access is restricted. Sign in to use the troubleshooting agent.
+      </p>
+
+      <form id="loginForm" style="display:flex; gap:10px; flex-wrap:wrap;">
+        <input
+          id="loginUser"
+          class="input"
+          style="min-width:220px;"
+          placeholder="Username"
+          autocomplete="username"
+          required
+        />
+        <input
+          id="loginPass"
+          class="input"
+          style="min-width:220px;"
+          placeholder="Password"
+          type="password"
+          autocomplete="current-password"
+          required
+        />
+        <button class="btn primary" type="submit">Login</button>
+        <button class="btn secondary" type="button" id="logoutBtn">Logout</button>
+      </form>
+
+      <div class="footnote" id="authStatus" style="margin-top:10px;"></div>
+    </section>
+
     <!-- Controls -->
     <section class="card controls" aria-label="Mode and actions">
       <div class="left">
-        <!-- JS expects this ID -->
         <span class="pill" id="modePill">Mode: Diagnostics</span>
 
-        <!-- JS expects approveToggle + structure: input + span.toggleUi -->
         <label class="toggle" title="Enable only if you approve production-impacting remediation">
           <input type="checkbox" id="approveToggle" />
           <span class="toggleUi" aria-hidden="true"></span>
@@ -75,7 +105,6 @@
       </div>
 
       <div class="right">
-        <!-- JS expects these IDs -->
         <button class="btn secondary" type="button" id="copyTicketBtn">Copy Ticket Notes</button>
         <button class="btn secondary" type="button" id="exportTxtBtn">Export TXT</button>
         <button class="btn secondary" type="button" id="exportJsonBtn">Export JSON</button>
@@ -84,24 +113,20 @@
 
     <!-- Presets -->
     <section class="card presets" aria-label="Preset intake templates">
-      <!-- JS binds to [data-preset] -->
       <button class="chip" type="button" data-preset="network">Network</button>
       <button class="chip" type="button" data-preset="server">Server</button>
       <button class="chip" type="button" data-preset="script">Script</button>
       <button class="chip" type="button" data-preset="hardware">Hardware</button>
-
       <span class="hint">Use a preset to generate a structured intake template.</span>
     </section>
 
     <!-- Chat -->
     <section class="card chatWrap" aria-label="Chat">
-      <!-- JS expects chat -->
       <div class="chat" id="chat" aria-label="Chat transcript"></div>
     </section>
 
     <!-- Composer -->
     <section class="card composerWrap" aria-label="Message input">
-      <!-- JS expects form + message + image -->
       <form class="composer" id="form">
         <label class="fileBtn" title="Attach a screenshot (no secrets)">
           <input type="file" id="image" accept="image/*" />
@@ -125,23 +150,20 @@
     </section>
 
     <!-- Toast -->
-    <!-- JS expects toast -->
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </main>
 
-  <!-- Backend URL MUST be set before app.js loads -->
+  <!-- Backend URLs (must be set BEFORE app.js loads) -->
   <script>
-    // Render backend endpoint
     window.BACKEND_URL = "https://imbedded-csrma-ai-agent.onrender.com/api/chat";
+    window.LOGIN_URL = "https://imbedded-csrma-ai-agent.onrender.com/auth/login";
   </script>
 
-  <!-- App JS (must exist at /assets/js/app.js in repo root) -->
-  <script src="./assets/js/app.js?v=1"></script>
+  <!-- App JS -->
+  <script src="./assets/js/app.js?v=2"></script>
 
   <!-- Preflight: hide warning if JS is loaded -->
   <script>
-    // If app.js loads, we can hide the preflight box.
-    // Even if app.js errors later, this confirms the file was fetched.
     (function () {
       const pf = document.getElementById("preflight");
       if (pf) pf.classList.add("hidden");
