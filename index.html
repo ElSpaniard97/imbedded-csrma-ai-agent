@@ -5,71 +5,147 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>AI Infrastructure Troubleshooting</title>
   <meta name="description" content="Diagnostics-first. Approval-gated remediation. Paste logs/scripts or upload screenshots." />
-  <link rel="stylesheet" href="./assets/css/main.css" />
+
+  <!-- CSS (must exist at /assets/css/main.css in repo root) -->
+  <link rel="stylesheet" href="./assets/css/main.css?v=1" />
+
+  <!-- If CSS fails to load, the page will look unstyled. This provides a visible hint. -->
+  <style>
+    .preflight {
+      margin: 14px 0;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.18);
+      background: rgba(0,0,0,.25);
+      color: rgba(255,255,255,.85);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .preflight strong { color: #fff; }
+    .preflight code {
+      background: rgba(255,255,255,.08);
+      padding: 2px 6px;
+      border-radius: 8px;
+    }
+    /* Hide the preflight box once JS confirms it loaded */
+    .hidden { display: none !important; }
+  </style>
 </head>
+
 <body>
-  <main class="wrap">
-    <header class="top">
+  <main class="container">
+    <header class="header">
       <div class="brand">
-        <div class="mark">AI</div>
-        <div class="brandText">
+        <div class="logo">AI</div>
+        <div>
           <h1>Infrastructure Troubleshooting</h1>
           <p>Diagnostics-first. Approval-gated remediation. Paste logs/scripts or upload screenshots.</p>
         </div>
       </div>
 
-      <div class="toolbar">
-        <div class="mode">
-          <span class="pill" id="modePill">Mode: Diagnostics</span>
-          <label class="toggle">
-            <input type="checkbox" id="approveToggle" />
-            <span class="toggleUi"></span>
-            <span class="toggleText">Remediation approved</span>
-          </label>
+      <noscript>
+        <div class="preflight">
+          <strong>JavaScript is disabled.</strong> This app requires JavaScript for buttons, chat, and uploads.
         </div>
+      </noscript>
 
-        <div class="actions">
-          <button class="btn secondary" type="button" id="copyTicketBtn">Copy Ticket Notes</button>
-          <button class="btn secondary" type="button" id="exportTxtBtn">Export TXT</button>
-          <button class="btn secondary" type="button" id="exportJsonBtn">Export JSON</button>
-        </div>
-      </div>
-
-      <div class="presets" aria-label="Preset prompts">
-        <button class="chip" type="button" data-preset="network">Network</button>
-        <button class="chip" type="button" data-preset="server">Server</button>
-        <button class="chip" type="button" data-preset="script">Script</button>
-        <button class="chip" type="button" data-preset="hardware">Hardware</button>
+      <!-- Visible warning if assets fail to load (JS will hide when it runs) -->
+      <div id="preflight" class="preflight">
+        <strong>Loading checks:</strong>
+        If this message stays visible and the page looks plain or buttons don’t work,
+        verify these files exist in your repo root:
+        <code>assets/css/main.css</code> and <code>assets/js/app.js</code>.
+        Then hard refresh (Cmd+Shift+R).
       </div>
     </header>
 
-    <section class="chat" id="chat" aria-label="Chat transcript"></section>
+    <!-- Controls -->
+    <section class="card controls" aria-label="Mode and actions">
+      <div class="left">
+        <!-- JS expects this ID -->
+        <span class="pill" id="modePill">Mode: Diagnostics</span>
 
-    <form class="composer" id="form">
-      <label class="fileBtn">
-        <input type="file" id="image" accept="image/*" />
-        Attach screenshot
-      </label>
-
-      <textarea id="message" class="input" rows="3"
-        placeholder="Describe the issue or paste logs/errors/scripts. Use the preset chips for a structured template."
-        required></textarea>
-
-      <button class="btn primary" type="submit" id="sendBtn">Send</button>
-    </form>
-
-    <footer class="foot">
-      <div class="muted">
-        Do not paste secrets (keys/passwords). Copy-to-ticket produces ticket-safe notes.
+        <!-- JS expects approveToggle + structure: input + span.toggleUi -->
+        <label class="toggle" title="Enable only if you approve production-impacting remediation">
+          <input type="checkbox" id="approveToggle" />
+          <span class="toggleUi" aria-hidden="true"></span>
+          <span class="toggleText">Remediation approved</span>
+        </label>
       </div>
-    </footer>
 
+      <div class="right">
+        <!-- JS expects these IDs -->
+        <button class="btn secondary" type="button" id="copyTicketBtn">Copy Ticket Notes</button>
+        <button class="btn secondary" type="button" id="exportTxtBtn">Export TXT</button>
+        <button class="btn secondary" type="button" id="exportJsonBtn">Export JSON</button>
+      </div>
+    </section>
+
+    <!-- Presets -->
+    <section class="card presets" aria-label="Preset intake templates">
+      <!-- JS binds to [data-preset] -->
+      <button class="chip" type="button" data-preset="network">Network</button>
+      <button class="chip" type="button" data-preset="server">Server</button>
+      <button class="chip" type="button" data-preset="script">Script</button>
+      <button class="chip" type="button" data-preset="hardware">Hardware</button>
+
+      <span class="hint">Use a preset to generate a structured intake template.</span>
+    </section>
+
+    <!-- Chat -->
+    <section class="card chatWrap" aria-label="Chat">
+      <!-- JS expects chat -->
+      <div class="chat" id="chat" aria-label="Chat transcript"></div>
+    </section>
+
+    <!-- Composer -->
+    <section class="card composerWrap" aria-label="Message input">
+      <!-- JS expects form + message + image -->
+      <form class="composer" id="form">
+        <label class="fileBtn" title="Attach a screenshot (no secrets)">
+          <input type="file" id="image" accept="image/*" />
+          Attach screenshot
+        </label>
+
+        <textarea
+          id="message"
+          class="input"
+          rows="3"
+          placeholder="Describe the issue or paste logs/errors/scripts…"
+          required
+        ></textarea>
+
+        <button class="btn primary" type="submit" id="sendBtn">Send</button>
+      </form>
+
+      <div class="footnote">
+        Do not paste secrets (keys/passwords). Outputs are designed to be ticket-safe.
+      </div>
+    </section>
+
+    <!-- Toast -->
+    <!-- JS expects toast -->
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </main>
 
+  <!-- Backend URL MUST be set before app.js loads -->
   <script>
+    // Render backend endpoint
     window.BACKEND_URL = "https://imbedded-csrma-ai-agent.onrender.com/api/chat";
   </script>
-  <script src="./assets/js/app.js"></script>
+
+  <!-- App JS (must exist at /assets/js/app.js in repo root) -->
+  <script src="./assets/js/app.js?v=1"></script>
+
+  <!-- Preflight: hide warning if JS is loaded -->
+  <script>
+    // If app.js loads, we can hide the preflight box.
+    // Even if app.js errors later, this confirms the file was fetched.
+    (function () {
+      const pf = document.getElementById("preflight");
+      if (pf) pf.classList.add("hidden");
+    })();
+  </script>
 </body>
 </html>
