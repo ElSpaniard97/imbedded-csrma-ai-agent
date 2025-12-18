@@ -2,13 +2,13 @@ import express from "express";
 import cors from "cors";
 import multer from "multer";
 import OpenAI from "openai";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 /* ---------- CORS ---------- */
 const ALLOWED_ORIGINS = new Set([
@@ -20,7 +20,6 @@ const ALLOWED_ORIGINS = new Set([
 app.use(
   cors({
     origin: (origin, cb) => {
-      // Allow same-origin / server-to-server (no Origin header), and allowed browsers
       if (!origin) return cb(null, true);
       if (ALLOWED_ORIGINS.has(origin)) return cb(null, true);
       return cb(new Error(`CORS blocked for origin: ${origin}`), false);
@@ -31,16 +30,45 @@ app.use(
   })
 );
 
-/* ---------- JSON (optional) ---------- */
 app.use(express.json({ limit: "10mb" }));
 
 /* ---------- MULTER (FormData) ---------- */
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 6 * 1024 * 1024 } // 6MB
+  limits: { fileSize: 6 * 1024 * 1024 }
 });
 
-/* ---------- Helpers ---------- */
+/* ---------- Auth helpers ---------- */
+function requireEnv(name) {
+  if (!process.env[name]) throw new Error(`Missing env var: ${name}`);
+  return process.env[name];
+}
+
+function issueToken(username) {
+  const secret = requireEnv("JWT_SECRET");
+  // 8 hours is a reasonable default; change as you like
+  return jwt.sign({ sub: username }, secret, { expiresIn: "8h" });
+}
+
+function authMiddleware(req, res, next) {
+  try {
+    const secret = requireEnv("JWT_SECRET");
+    const auth = req.headers.authorization || "";
+    const [scheme, token] = auth.split(" ");
+
+    if (scheme !== "Bearer" || !token) {
+      return res.status(401).json({ ok: false, error: "Unauthorized" });
+    }
+
+    const payload = jwt.verify(token, secret);
+    req.user = payload;
+    return next();
+  } catch {
+    return res.status(401).json({ ok: false, error: "Unauthorized" });
+  }
+}
+
+/* ---------- Troubleshooting helpers ---------- */
 function parseHistory(raw) {
   if (!raw) return [];
   try {
@@ -81,10 +109,9 @@ D) Decision Tree / Next Steps
 E) If APPROVED: Remediation Plan (change steps + rollback + validation)
 `;
 
-  if (approvalState === "approved") {
-    return base + "\nApproval status: APPROVED. Remediation plan is allowed if appropriate.\n";
-  }
-  return base + "\nApproval status: NOT APPROVED. Diagnostics only; do NOT provide production-impacting remediation steps.\n";
+  return approvalState === "approved"
+    ? base + "\nApproval status: APPROVED. Remediation plan is allowed if appropriate.\n"
+    : base + "\nApproval status: NOT APPROVED. Diagnostics only; do NOT provide production-impacting remediation steps.\n";
 }
 
 function normalizeHistory(history) {
@@ -102,21 +129,53 @@ function normalizeHistory(history) {
 
 /* ---------- Routes ---------- */
 app.get("/", (req, res) => {
-  res
-    .status(200)
-    .send("AI Troubleshooting Backend is running. Use GET /healthz or POST /api/chat.");
+  res.status(200).send("Backend running. Use GET /healthz, POST /auth/login, POST /api/chat.");
 });
 
 app.get("/healthz", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-app.post("/api/chat", upload.single("image"), async (req, res) => {
+/**
+ * Login endpoint
+ * Body: { username, password }
+ * Returns: { ok: true, token }
+ */
+app.post("/auth/login", async (req, res) => {
+  try {
+    const adminUser = requireEnv("ADMIN_USERNAME");
+    const adminPass = requireEnv("ADMIN_PASSWORD");
+
+    const { username, password } = req.body || {};
+    if (!username || !password) {
+      return res.status(400).json({ ok: false, error: "Username and password are required" });
+    }
+
+    // Constant-time-ish compare via bcrypt hash computed from env password
+    // (We avoid storing plaintext in code/repo; env still holds plaintext—acceptable for many small deployments)
+    const passHash = bcrypt.hashSync(adminPass, 10);
+    const userOk = String(username) === String(adminUser);
+    const passOk = bcrypt.compareSync(String(password), passHash);
+
+    if (!userOk || !passOk) {
+      return res.status(401).json({ ok: false, error: "Invalid credentials" });
+    }
+
+    const token = issueToken(username);
+    return res.json({ ok: true, token });
+  } catch (err) {
+    console.error("Login error:", err);
+    return res.status(500).json({ ok: false, error: "Internal server error" });
+  }
+});
+
+/**
+ * Protected chat endpoint
+ */
+app.post("/api/chat", authMiddleware, upload.single("image"), async (req, res) => {
   try {
     if (!process.env.OPENAI_API_KEY) {
-      return res
-        .status(500)
-        .json({ ok: false, error: "Missing OPENAI_API_KEY on server." });
+      return res.status(500).json({ ok: false, error: "Missing OPENAI_API_KEY on server." });
     }
 
     const message = req.body?.message ? String(req.body.message) : "";
@@ -129,7 +188,6 @@ app.post("/api/chat", upload.single("image"), async (req, res) => {
     const system = buildSystemPrompt(approvalState);
 
     const hasImage = !!req.file;
-
     const userContent = hasImage
       ? `${message}\n\n[Note: User attached a screenshot image. Ask for the visible error text if needed; do not assume OCR.]`
       : message;
@@ -140,26 +198,15 @@ app.post("/api/chat", upload.single("image"), async (req, res) => {
       { role: "user", content: userContent }
     ];
 
-    // Model call
     const response = await openai.responses.create({
       model: "gpt-4.1-mini",
       input: messages
     });
 
-    const text = response.output_text || "";
-
-    return res.json({ ok: true, text });
+    return res.json({ ok: true, text: response.output_text || "" });
   } catch (err) {
     console.error("API error:", err);
-
-    // Return a slightly more helpful error while staying safe
-    const msg =
-      (err && err.message) ? err.message : "Internal server error";
-
-    return res.status(500).json({
-      ok: false,
-      error: msg.includes("CORS") ? "CORS error on backend." : msg
-    });
+    return res.status(500).json({ ok: false, error: err?.message || "Internal server error" });
   }
 });
 
