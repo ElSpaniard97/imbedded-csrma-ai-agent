@@ -1,131 +1,56 @@
 import express from "express";
 import cors from "cors";
-import multer from "multer";
-import OpenAI from "openai";
 
 const app = express();
+const PORT = process.env.PORT || 10000;
 
-app.use(cors({
-  origin: [
-    "https://elspaniard97.github.io/imbedded-csrma-ai-agent/"
-  ]
-}));
+/* ---------- CORS (REQUIRED) ---------- */
+app.use(
+  cors({
+    origin: [
+      "https://elspaniard97.github.io",
+      "http://localhost:5500", // optional local dev
+      "http://localhost:3000"
+    ],
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type"]
+  })
+);
 
-app.use(express.json({ limit: "2mb" }));
+/* ---------- BODY PARSER ---------- */
+app.use(express.json({ limit: "10mb" }));
 
-const upload = multer({
-  limits: { fileSize: 8 * 1024 * 1024 } // 8MB
-});
-
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
-
-const SYSTEM_INSTRUCTIONS = `
-You are an enterprise infrastructure troubleshooting agent for:
-- Servers (Linux/Windows)
-- Switches/Routers (networking)
-- Scripts/Automation (PowerShell, Python, Bash, Ansible, Terraform, YAML/JSON)
-- Hardware/Components (BMC: iDRAC/iLO/IPMI)
-
-Operational policy:
-1) Default to DIAGNOSTICS ONLY:
-   - Ask scope/impact questions
-   - Provide read-only verification commands and what to look for
-   - Interpret outputs and narrow likely causes
-   - Propose a remediation plan but do NOT provide change steps unless approved
-2) If the user requests action words (e.g., "apply", "proceed", "run the fix", "make the change"):
-   - Require an approval checklist:
-     - maintenance window approved?
-     - backups/restore points exist?
-     - rollback plan acceptable?
-   - Ask for explicit confirmation: "Approve" or "Yes, proceed"
-3) Only after approval:
-   - Provide step-by-step remediation
-   - Include validation and rollback/backout steps
-   - Minimize blast radius
-
-Output format (always):
-1) Summary
-2) Scope/Impact questions
-3) Likely causes (ranked)
-4) Verification steps (commands + expected signals)
-5) Findings / interpretation
-6) Proposed plan (no changes unless approved)
-7) Risks / blast radius
-8) Next actions
-`;
-
-// NEW: Root route so visiting the service URL in a browser doesn't look "broken"
+/* ---------- HEALTH CHECK ---------- */
 app.get("/", (req, res) => {
-  res
-    .status(200)
-    .send("AI Troubleshooting Backend is running. Use GET /healthz or POST /api/chat.");
+  res.send("AI Troubleshooting Backend is running.");
 });
 
-// Health check (Render + human verification)
-app.get("/healthz", (req, res) => res.status(200).send("ok"));
+app.get("/healthz", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
 
-// Chat endpoint: accepts text + optional screenshot upload ("image")
-app.post("/api/chat", upload.single("image"), async (req, res) => {
+/* ---------- CHAT ENDPOINT ---------- */
+app.post("/api/chat", async (req, res) => {
   try {
-    if (!process.env.OPENAI_API_KEY) {
-      return res.status(500).json({
-        ok: false,
-        error: "Missing OPENAI_API_KEY on server. Add it in Render environment variables."
-      });
+    const { message } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ error: "Message is required" });
     }
 
-    const { message, history } = req.body;
-
-    // history is passed as JSON string from the frontend
-    const parsedHistory = history ? JSON.parse(history) : [];
-
-    const input = [];
-
-    // Keep last 8 turns to control token usage
-    for (const turn of parsedHistory.slice(-8)) {
-      input.push({
-        role: turn.role,
-        content: [{ type: "text", text: String(turn.content || "") }]
-      });
-    }
-
-    // Current user message (text + optional image)
-    const userContent = [];
-    if (message) userContent.push({ type: "text", text: String(message) });
-
-    if (req.file) {
-      const base64 = req.file.buffer.toString("base64");
-      const mime = req.file.mimetype || "image/png";
-      userContent.push({
-        type: "input_image",
-        image_url: `data:${mime};base64,${base64}`
-      });
-    }
-
-    input.push({ role: "user", content: userContent });
-
-    const response = await client.responses.create({
-      model: "gpt-4.1-mini",
-      instructions: SYSTEM_INSTRUCTIONS,
-      input
+    // TEMP response for connectivity test
+    // (Replace later with OpenAI call)
+    res.json({
+      reply: `Received message successfully:\n\n${message}`
     });
 
-    const text =
-      response.output_text ||
-      response.output?.[0]?.content?.[0]?.text ||
-      "";
-
-    return res.json({ ok: true, text });
   } catch (err) {
-    return res.status(500).json({
-      ok: false,
-      error: err?.message || "Server error"
-    });
+    console.error("API error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// Render binds your service on process.env.PORT
-const port = process.env.PORT || 8080;
-app.listen(port, () => console.log(`Server listening on ${port}`));
+/* ---------- START ---------- */
+app.listen(PORT, () => {
+  console.log(`Server listening on ${PORT}`);
+});
