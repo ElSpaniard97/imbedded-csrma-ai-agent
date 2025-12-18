@@ -11,6 +11,7 @@ function addBubble(role, text) {
   div.textContent = text;
   chatEl.appendChild(div);
   chatEl.scrollTop = chatEl.scrollHeight;
+  return div;
 }
 
 form.addEventListener("submit", async (e) => {
@@ -24,22 +25,35 @@ form.addEventListener("submit", async (e) => {
 
   messageEl.value = "";
 
-  const fd = new FormData();
-  fd.append("message", message);
-  fd.append("history", JSON.stringify(history));
+  const working = addBubble("assistant", "Working...");
 
-  if (imageEl.files[0]) fd.append("image", imageEl.files[0]);
+  try {
+    if (!window.BACKEND_URL || window.BACKEND_URL.includes("YOUR_RENDER_BACKEND_URL")) {
+      working.textContent = "Backend URL not set. Update window.BACKEND_URL in index.html after deploying Render.";
+      return;
+    }
 
-  addBubble("assistant", "Working...");
+    const fd = new FormData();
+    fd.append("message", message);
+    fd.append("history", JSON.stringify(history));
 
-  const resp = await fetch(window.BACKEND_URL, { method: "POST", body: fd });
-  const data = await resp.json();
+    if (imageEl.files && imageEl.files[0]) {
+      fd.append("image", imageEl.files[0]);
+    }
 
-  // replace "Working..." bubble
-  chatEl.lastChild.textContent = data.ok ? data.text : `Error: ${data.error}`;
+    const resp = await fetch(window.BACKEND_URL, { method: "POST", body: fd });
+    const data = await resp.json();
 
-  if (data.ok) history.push({ role: "assistant", content: data.text });
+    if (!resp.ok || !data.ok) {
+      working.textContent = `Error: ${data.error || resp.statusText}`;
+      return;
+    }
 
-  // clear file selection
-  imageEl.value = "";
+    working.textContent = data.text;
+    history.push({ role: "assistant", content: data.text });
+  } catch (err) {
+    working.textContent = `Error: ${err?.message || "Request failed"}`;
+  } finally {
+    imageEl.value = "";
+  }
 });
