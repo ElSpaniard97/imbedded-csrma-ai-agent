@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AI Infrastructure Troubleshooting</title>
+  <link rel="stylesheet" href="./assets/css/main.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header class="top">
+      <h1>AI Infrastructure Troubleshooting</h1>
+      <p>Diagnostics-first. Approval-gated remediation. Paste logs, errors, scripts, or upload a screenshot.</p>
+    </header>
+
+    <section class="chat" id="chat"></section>
+
+    <form class="composer" id="form">
+      <input class="file" type="file" id="image" accept="image/*" />
+      <textarea class="input" id="message" placeholder="Paste error/logs or describe the issue..." required></textarea>
+      <button class="btn" type="submit">Send</button>
+    </form>
+  </main>
+
+  <script>
+    window.BACKEND_URL = "https://YOUR-BACKEND-DOMAIN/api/chat";
+  </script>
+  <script src="./assets/js/app.js"></script>
+</body>
+</html>
