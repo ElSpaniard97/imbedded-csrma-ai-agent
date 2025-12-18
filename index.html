@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AI Infrastructure Troubleshooting</title>
+  <meta name="description" content="Diagnostics-first. Approval-gated remediation. Paste logs, errors, scripts, or upload screenshots." />
+  <link rel="stylesheet" href="./assets/css/main.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header class="top">
+      <div class="brand">
+        <div class="mark">AI</div>
+        <div>
+          <h1>Infrastructure Troubleshooting</h1>
+          <p>Diagnostics-first. Approval-gated remediation. Paste logs/scripts or upload screenshots.</p>
+        </div>
+      </div>
+    </header>
+
+    <section class="chat" id="chat" aria-label="Chat transcript"></section>
+
+    <form class="composer" id="form">
+      <label class="fileBtn">
+        <input type="file" id="image" accept="image/*" />
+        Attach screenshot
+      </label>
+
+      <textarea id="message" class="input" rows="3"
+        placeholder="Describe the issue or paste logs/errors/scripts. Example: 'Interface flapping on switch uplink...' or paste a traceback."
+        required></textarea>
+
+      <button class="btn" type="submit">Send</button>
+    </form>
+
+    <footer class="foot">
+      <div class="muted">
+        Do not paste secrets (keys/passwords). Use ticket-safe output.
+      </div>
+    </footer>
+  </main>
+
+  <script>
+    window.BACKEND_URL = "https://imbedded-csrma-ai-agent.onrender.com/api/chat";
+  </script>
+  <script src="./assets/js/app.js"></script>
+</body>
+</html>
