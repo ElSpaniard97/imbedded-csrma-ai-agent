@@ -11,15 +11,23 @@ const openai = new OpenAI({
 });
 
 /* ---------- CORS ---------- */
+const ALLOWED_ORIGINS = new Set([
+  "https://elspaniard97.github.io",
+  "http://localhost:5500",
+  "http://localhost:3000"
+]);
+
 app.use(
   cors({
-    origin: [
-      "https://elspaniard97.github.io",
-      "http://localhost:5500",
-      "http://localhost:3000"
-    ],
+    origin: (origin, cb) => {
+      // Allow same-origin / server-to-server (no Origin header), and allowed browsers
+      if (!origin) return cb(null, true);
+      if (ALLOWED_ORIGINS.has(origin)) return cb(null, true);
+      return cb(new Error(`CORS blocked for origin: ${origin}`), false);
+    },
     methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type"]
+    allowedHeaders: ["Content-Type", "Authorization"],
+    optionsSuccessStatus: 204
   })
 );
 
@@ -56,14 +64,14 @@ You are an enterprise infrastructure troubleshooting agent for:
 - Hardware/component alerts (iDRAC/iLO/IPMI, RAID, thermals, PSU, ECC)
 
 Operating rules:
-1) Diagnostics-first: Always start by clarifying impact + collecting evidence.
-2) Ticket-safe output: Never request or output secrets. Use redaction guidance when needed.
-3) Be explicit and structured: Provide steps, commands, and what to look for.
-4) Safety: Avoid risky changes unless APPROVAL is confirmed.
+1) Diagnostics-first: Start by clarifying scope/impact, recent change, and collecting evidence.
+2) Ticket-safe output: Never request or output secrets (keys/passwords). Recommend redaction.
+3) Be explicit and structured: Provide commands/steps AND "what to look for".
+4) Safety: Avoid risky/production-impacting changes unless APPROVAL is confirmed.
 
 Approval policy:
-- If approval is NOT confirmed: provide ONLY diagnostics, verification commands, and decision points.
-- If approval IS confirmed: you may provide a remediation plan with rollback + validation steps.
+- If approval is NOT confirmed: provide ONLY diagnostics, verification commands, decision points, and safe mitigations that do not change production configuration.
+- If approval IS confirmed: provide a remediation plan with rollback + validation.
 
 Response format (always):
 A) Quick Triage (2-6 bullets)
@@ -80,17 +88,23 @@ E) If APPROVED: Remediation Plan (change steps + rollback + validation)
 }
 
 function normalizeHistory(history) {
-  // Frontend history includes {role, content}. Keep it limited to avoid runaway token usage.
   if (!Array.isArray(history)) return [];
   return history
-    .filter(x => x && (x.role === "user" || x.role === "assistant") && typeof x.content === "string")
-    .slice(-12) // keep last 12 turns
-    .map(x => ({ role: x.role, content: x.content }));
+    .filter(
+      (x) =>
+        x &&
+        (x.role === "user" || x.role === "assistant") &&
+        typeof x.content === "string"
+    )
+    .slice(-12)
+    .map((x) => ({ role: x.role, content: x.content }));
 }
 
 /* ---------- Routes ---------- */
 app.get("/", (req, res) => {
-  res.send("AI Troubleshooting Backend is running. Use GET /healthz or POST /api/chat.");
+  res
+    .status(200)
+    .send("AI Troubleshooting Backend is running. Use GET /healthz or POST /api/chat.");
 });
 
 app.get("/healthz", (req, res) => {
@@ -100,10 +114,12 @@ app.get("/healthz", (req, res) => {
 app.post("/api/chat", upload.single("image"), async (req, res) => {
   try {
     if (!process.env.OPENAI_API_KEY) {
-      return res.status(500).json({ ok: false, error: "Missing OPENAI_API_KEY on server." });
+      return res
+        .status(500)
+        .json({ ok: false, error: "Missing OPENAI_API_KEY on server." });
     }
 
-    const message = (req.body && req.body.message) ? String(req.body.message) : "";
+    const message = req.body?.message ? String(req.body.message) : "";
     if (!message.trim()) {
       return res.status(400).json({ ok: false, error: "Message is required" });
     }
@@ -112,8 +128,6 @@ app.post("/api/chat", upload.single("image"), async (req, res) => {
     const approvalState = approvalStateFromMessage(message);
     const system = buildSystemPrompt(approvalState);
 
-    // Optional: if image attached, we acknowledge but do not OCR here (keeps it simple).
-    // If you want image-to-text later, we can add it using a vision-capable model.
     const hasImage = !!req.file;
 
     const userContent = hasImage
@@ -126,19 +140,26 @@ app.post("/api/chat", upload.single("image"), async (req, res) => {
       { role: "user", content: userContent }
     ];
 
-    // Use Responses API via the OpenAI SDK (stable approach)
+    // Model call
     const response = await openai.responses.create({
       model: "gpt-4.1-mini",
       input: messages
     });
 
-    // The SDK returns output in a structured way; extract text safely
     const text = response.output_text || "";
 
     return res.json({ ok: true, text });
   } catch (err) {
     console.error("API error:", err);
-    return res.status(500).json({ ok: false, error: "Internal server error" });
+
+    // Return a slightly more helpful error while staying safe
+    const msg =
+      (err && err.message) ? err.message : "Internal server error";
+
+    return res.status(500).json({
+      ok: false,
+      error: msg.includes("CORS") ? "CORS error on backend." : msg
+    });
   }
 });
 
