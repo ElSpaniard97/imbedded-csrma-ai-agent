@@ -12,7 +12,16 @@ const exportJsonBtn = document.getElementById("exportJsonBtn");
 
 const toastEl = document.getElementById("toast");
 
+// Auth UI
+const authCard = document.getElementById("authCard");
+const loginForm = document.getElementById("loginForm");
+const loginUser = document.getElementById("loginUser");
+const loginPass = document.getElementById("loginPass");
+const logoutBtn = document.getElementById("logoutBtn");
+const authStatus = document.getElementById("authStatus");
+
 const history = [];
+const TOKEN_KEY = "ai_agent_token";
 
 function toast(msg) {
   if (!toastEl) return;
@@ -20,6 +29,66 @@ function toast(msg) {
   toastEl.classList.add("show");
   setTimeout(() => toastEl.classList.remove("show"), 1800);
 }
+
+function getToken() {
+  return localStorage.getItem(TOKEN_KEY) || "";
+}
+
+function setToken(t) {
+  if (!t) localStorage.removeItem(TOKEN_KEY);
+  else localStorage.setItem(TOKEN_KEY, t);
+}
+
+function setAuthUI() {
+  const token = getToken();
+  const authed = !!token;
+
+  // Disable main form if not authed
+  if (form) form.querySelectorAll("button,textarea,input").forEach(el => el.disabled = !authed);
+  if (authStatus) authStatus.textContent = authed ? "Authenticated." : "Not authenticated.";
+
+  // Optional: visually dim chat when locked
+  if (chatEl) chatEl.style.opacity = authed ? "1" : "0.55";
+}
+
+logoutBtn?.addEventListener("click", () => {
+  setToken("");
+  setAuthUI();
+  toast("Logged out.");
+});
+
+loginForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    if (!window.LOGIN_URL) {
+      toast("LOGIN_URL not set in index.html.");
+      return;
+    }
+
+    const u = (loginUser?.value || "").trim();
+    const p = (loginPass?.value || "").trim();
+    if (!u || !p) return toast("Enter username and password.");
+
+    const resp = await fetch(window.LOGIN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: u, password: p })
+    });
+
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.ok || !data.token) {
+      toast(data.error || "Login failed.");
+      return;
+    }
+
+    setToken(data.token);
+    loginPass.value = "";
+    setAuthUI();
+    toast("Login successful.");
+  } catch (err) {
+    toast(err?.message || "Login error.");
+  }
+});
 
 function isApproved() {
   return !!approveToggle?.checked;
@@ -115,7 +184,6 @@ exportJsonBtn?.addEventListener("click", () => {
   toast("Exported JSON.");
 });
 
-// Preset templates
 const presets = {
   network: `Category: Networking (Switch/Router)
 Goal: Diagnostics only (no changes)
@@ -211,6 +279,12 @@ document.querySelectorAll("[data-preset]").forEach((btn) => {
 form?.addEventListener("submit", async (e) => {
   e.preventDefault();
 
+  const token = getToken();
+  if (!token) {
+    toast("Please login first.");
+    return;
+  }
+
   const rawMessage = messageEl.value.trim();
   if (!rawMessage) return;
 
@@ -239,8 +313,15 @@ form?.addEventListener("submit", async (e) => {
 
     if (imageEl?.files && imageEl.files[0]) fd.append("image", imageEl.files[0]);
 
-    const resp = await fetch(window.BACKEND_URL, { method: "POST", body: fd });
-    const data = await resp.json();
+    const resp = await fetch(window.BACKEND_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`
+      },
+      body: fd
+    });
+
+    const data = await resp.json().catch(() => ({}));
 
     if (!resp.ok || !data.ok) {
       working.textContent = `Error: ${data.error || resp.statusText}`;
@@ -249,7 +330,6 @@ form?.addEventListener("submit", async (e) => {
 
     working.textContent = data.text;
     history.push({ role: "assistant", content: data.text });
-
     toast("Response received.");
   } catch (err) {
     working.textContent = `Error: ${err?.message || "Request failed"}`;
@@ -257,3 +337,6 @@ form?.addEventListener("submit", async (e) => {
     if (imageEl) imageEl.value = "";
   }
 });
+
+// Initialize UI locked until login
+setAuthUI();
