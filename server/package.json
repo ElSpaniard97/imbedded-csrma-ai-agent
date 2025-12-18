@@ -1,10 +1,10 @@
 {
   "name": "ai-troubleshooting-backend",
   "version": "1.0.0",
-  "private": true,
   "type": "module",
-  "engines": {
-    "node": ">=18"
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
   },
   "scripts": {
     "start": "node server.js",
