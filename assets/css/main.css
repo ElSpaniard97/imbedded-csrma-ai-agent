@@ -22,6 +22,8 @@ body {
   color: var(--text);
 }
 
+.hidden { display: none !important; }
+
 .container {
   max-width: 980px;
   margin: 0 auto;
@@ -52,6 +54,7 @@ p { margin: 6px 0 0; color: var(--muted); }
   margin-bottom: 12px;
 }
 
+/* Top controls */
 .controls {
   display: flex;
   justify-content: space-between;
@@ -60,7 +63,13 @@ p { margin: 6px 0 0; color: var(--muted); }
   align-items: center;
 }
 
-.controls .left, .controls .right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.controls .left,
+.controls .right {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
 
 .pill {
   padding: 7px 10px;
@@ -76,6 +85,7 @@ p { margin: 6px 0 0; color: var(--muted); }
   border-color: rgba(239,68,68,.35);
 }
 
+/* Toggle */
 .toggle {
   display: inline-flex;
   align-items: center;
@@ -110,10 +120,14 @@ p { margin: 6px 0 0; color: var(--muted); }
   transition: all .18s ease;
 }
 
-.toggle input:checked + .toggleUi::after { left: 21px; background: rgba(16,185,129,.95); }
+.toggle input:checked + .toggleUi::after {
+  left: 21px;
+  background: rgba(16,185,129,.95);
+}
 
 .toggleText { color: var(--muted); font-size: 13px; font-weight: 800; }
 
+/* Buttons */
 .btn {
   padding: 10px 12px;
   border-radius: 12px;
@@ -135,7 +149,14 @@ p { margin: 6px 0 0; color: var(--muted); }
 
 .btn:active { transform: translateY(1px); }
 
-.presets { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+/* Presets */
+.presets {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
 .chip {
   padding: 8px 10px;
   border-radius: 999px;
@@ -146,11 +167,14 @@ p { margin: 6px 0 0; color: var(--muted); }
   font-weight: 900;
   font-size: 13px;
 }
+
 .chip:hover { background: rgba(0,0,0,.22); }
 
 .hint { color: var(--muted); font-size: 12px; margin-left: 6px; }
 
+/* Chat */
 .chatWrap { padding: 0; }
+
 .chat {
   min-height: 52vh;
   padding: 14px;
@@ -178,7 +202,9 @@ p { margin: 6px 0 0; color: var(--muted); }
   background: rgba(0,0,0,.16);
 }
 
+/* Composer */
 .composerWrap { padding: 14px; }
+
 .composer {
   display: flex;
   gap: 10px;
@@ -197,6 +223,7 @@ p { margin: 6px 0 0; color: var(--muted); }
   cursor: pointer;
   font-weight: 900;
 }
+
 .fileBtn input { display: none; }
 
 .input {
@@ -216,6 +243,7 @@ p { margin: 6px 0 0; color: var(--muted); }
   font-size: 12px;
 }
 
+/* Toast */
 .toast {
   position: fixed;
   bottom: 16px;
@@ -232,3 +260,21 @@ p { margin: 6px 0 0; color: var(--muted); }
 }
 
 .toast.show { opacity: 1; }
+
+/* =========================
+   Login Screen Styles
+========================= */
+.centerPage {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.loginShell {
+  width: min(520px, 100%);
+}
+
+.centerPage .card {
+  padding: 18px;
+}
