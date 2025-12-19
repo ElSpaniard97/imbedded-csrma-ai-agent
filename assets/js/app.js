@@ -1,10 +1,11 @@
 /* =========================
    Config
 ========================= */
-const APP_NAME = "Infra Troubleshooting Agent"; // (3) Rename here
+const APP_NAME = "Infra Troubleshooting Agent";
 
 const TOKEN_KEY = "ai_agent_token";
-const SETTINGS_KEY = "ai_agent_settings_v1";
+const SETTINGS_KEY = "ai_agent_settings_v2";
+const APPROVAL_KEY = "ai_agent_approval_default";
 
 /* =========================
    DOM References (Login-first)
@@ -34,16 +35,134 @@ const exportJsonBtn = document.getElementById("exportJsonBtn");
 const toastEl = document.getElementById("toast");
 
 /* =========================
-   Add-on UI (created by JS)
-   - Clear conversation
-   - Save settings
+   State
+========================= */
+const history = [];
+
+/* =========================
+   Toast
+========================= */
+function toast(msg) {
+  if (!toastEl) return;
+  toastEl.textContent = msg;
+  toastEl.classList.add("show");
+  setTimeout(() => toastEl.classList.remove("show"), 1800);
+}
+
+/* =========================
+   Auth token helpers
+========================= */
+function getToken() {
+  return localStorage.getItem(TOKEN_KEY) || "";
+}
+
+function setToken(token) {
+  if (!token) localStorage.removeItem(TOKEN_KEY);
+  else localStorage.setItem(TOKEN_KEY, token);
+}
+
+/* =========================
+   Mode helpers
+========================= */
+function isApproved() {
+  return !!approveToggle?.checked;
+}
+
+function setModePill() {
+  if (!modePill) return;
+  if (isApproved()) {
+    modePill.textContent = "Mode: Remediation (Approved)";
+    modePill.classList.add("danger");
+  } else {
+    modePill.textContent = "Mode: Diagnostics";
+    modePill.classList.remove("danger");
+  }
+}
+
+/* =========================
+   Settings model
+========================= */
+function defaultSettings() {
+  return {
+    defaultPreset: "",
+    expandOnPreset: true,
+    rememberApproval: true,
+    defaultApproval: false,
+    theme: "system" // "system" | "dark" | "light"
+  };
+}
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return defaultSettings();
+    const parsed = JSON.parse(raw);
+    return { ...defaultSettings(), ...parsed };
+  } catch {
+    return defaultSettings();
+  }
+}
+
+function saveSettings(settings) {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+}
+
+/* =========================
+   Theme (Light/Dark/System)
+========================= */
+function applyTheme(theme) {
+  const t = theme || "system";
+  const root = document.documentElement;
+
+  // remove explicit attributes first
+  root.removeAttribute("data-theme");
+
+  if (t === "dark") root.setAttribute("data-theme", "dark");
+  else if (t === "light") root.setAttribute("data-theme", "light");
+  // system => no attribute; CSS uses prefers-color-scheme fallback
+}
+
+function applySettings() {
+  const s = loadSettings();
+
+  // Theme
+  applyTheme(s.theme);
+
+  // Approval toggle behavior
+  if (approveToggle) {
+    if (s.rememberApproval) {
+      const remembered = localStorage.getItem(APPROVAL_KEY);
+      if (remembered === "1") approveToggle.checked = true;
+      else if (remembered === "0") approveToggle.checked = false;
+      else approveToggle.checked = !!s.defaultApproval;
+    } else {
+      approveToggle.checked = !!s.defaultApproval;
+    }
+  }
+
+  setModePill();
+
+  // Default preset (fill text area but do not send)
+  if (s.defaultPreset) {
+    presetFill(s.defaultPreset, { focus: false, expand: !!s.expandOnPreset, silent: true });
+  }
+}
+
+function rememberApprovalState() {
+  const s = loadSettings();
+  if (!s.rememberApproval) return;
+  localStorage.setItem(APPROVAL_KEY, isApproved() ? "1" : "0");
+}
+
+/* =========================
+   Utility buttons + Settings Modal UI
 ========================= */
 function ensureUtilityButtons() {
   const controlsLeft = document.querySelector(".controls .left");
   const controlsRight = document.querySelector(".controls .right");
   if (!controlsLeft || !controlsRight) return;
 
-  // Clear button (1)
+  // Clear button
   if (!document.getElementById("clearChatBtn")) {
     const clearBtn = document.createElement("button");
     clearBtn.id = "clearChatBtn";
@@ -55,7 +174,7 @@ function ensureUtilityButtons() {
     controlsRight.prepend(clearBtn);
   }
 
-  // Settings button (5)
+  // Settings button
   if (!document.getElementById("settingsBtn")) {
     const settingsBtn = document.createElement("button");
     settingsBtn.id = "settingsBtn";
@@ -67,7 +186,7 @@ function ensureUtilityButtons() {
     controlsLeft.appendChild(settingsBtn);
   }
 
-  // Settings modal container
+  // Modal
   if (!document.getElementById("settingsModal")) {
     const modal = document.createElement("div");
     modal.id = "settingsModal";
@@ -84,6 +203,15 @@ function ensureUtilityButtons() {
         </div>
 
         <div class="modalBody">
+          <label class="field">
+            <span class="fieldLabel">Theme</span>
+            <select class="input" id="settingTheme">
+              <option value="system">System</option>
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
+            </select>
+          </label>
+
           <label class="field">
             <span class="fieldLabel">Default preset</span>
             <select class="input" id="settingDefaultPreset">
@@ -107,7 +235,7 @@ function ensureUtilityButtons() {
 
           <label class="field row">
             <input type="checkbox" id="settingDefaultApproval" />
-            <span>Default remediation toggle to ON (only if you always intend this)</span>
+            <span>Default remediation toggle to ON</span>
           </label>
 
           <div class="modalActions">
@@ -119,7 +247,6 @@ function ensureUtilityButtons() {
     `;
     document.body.appendChild(modal);
 
-    // Close handlers
     modal.addEventListener("click", (e) => {
       const t = e.target;
       if (t && t.getAttribute && t.getAttribute("data-close") === "1") closeSettingsModal();
@@ -127,97 +254,72 @@ function ensureUtilityButtons() {
   }
 }
 
-/* =========================
-   State
-========================= */
-const history = [];
+function openSettingsModal() {
+  const modal = document.getElementById("settingsModal");
+  if (!modal) return;
 
-/* =========================
-   Utilities
-========================= */
-function toast(msg) {
-  if (!toastEl) return;
-  toastEl.textContent = msg;
-  toastEl.classList.add("show");
-  setTimeout(() => toastEl.classList.remove("show"), 1800);
-}
-
-function getToken() {
-  return localStorage.getItem(TOKEN_KEY) || "";
-}
-
-function setToken(token) {
-  if (!token) localStorage.removeItem(TOKEN_KEY);
-  else localStorage.setItem(TOKEN_KEY, token);
-}
-
-function isApproved() {
-  return !!approveToggle?.checked;
-}
-
-function setModePill() {
-  if (!modePill) return;
-  if (isApproved()) {
-    modePill.textContent = "Mode: Remediation (Approved)";
-    modePill.classList.add("danger");
-  } else {
-    modePill.textContent = "Mode: Diagnostics";
-    modePill.classList.remove("danger");
-  }
-}
-
-/* =========================
-   Settings (5)
-========================= */
-function defaultSettings() {
-  return {
-    defaultPreset: "",
-    expandOnPreset: true,
-    rememberApproval: true,
-    defaultApproval: false
-  };
-}
-
-function loadSettings() {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return defaultSettings();
-    const parsed = JSON.parse(raw);
-    return { ...defaultSettings(), ...parsed };
-  } catch {
-    return defaultSettings();
-  }
-}
-
-function saveSettings(settings) {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-}
-
-function applySettings() {
   const s = loadSettings();
 
-  // Remember approval toggle
-  if (approveToggle && s.rememberApproval) {
-    const remembered = localStorage.getItem("ai_agent_approval_default");
-    if (remembered === "1") approveToggle.checked = true;
-    if (remembered === "0") approveToggle.checked = false;
-  } else if (approveToggle) {
-    approveToggle.checked = !!s.defaultApproval;
-  }
+  const theme = document.getElementById("settingTheme");
+  const preset = document.getElementById("settingDefaultPreset");
+  const expand = document.getElementById("settingExpandOnPreset");
+  const remember = document.getElementById("settingRememberApproval");
+  const defaultApproval = document.getElementById("settingDefaultApproval");
 
-  setModePill();
+  if (theme) theme.value = s.theme || "system";
+  if (preset) preset.value = s.defaultPreset || "";
+  if (expand) expand.checked = !!s.expandOnPreset;
+  if (remember) remember.checked = !!s.rememberApproval;
+  if (defaultApproval) defaultApproval.checked = !!s.defaultApproval;
 
-  // Auto apply preset template if configured
-  if (s.defaultPreset) {
-    // Fill but do not force send. User can edit.
-    presetFill(s.defaultPreset, { focus: false, expand: s.expandOnPreset });
-  }
+  modal.classList.remove("hidden");
 }
 
-function rememberApprovalState() {
-  const s = loadSettings();
-  if (!s.rememberApproval) return;
-  localStorage.setItem("ai_agent_approval_default", isApproved() ? "1" : "0");
+function closeSettingsModal() {
+  const modal = document.getElementById("settingsModal");
+  if (!modal) return;
+  modal.classList.add("hidden");
+}
+
+function wireSettingsModalButtons() {
+  const saveBtn = document.getElementById("saveSettingsBtn");
+  const resetBtn = document.getElementById("resetSettingsBtn");
+
+  if (saveBtn && !saveBtn.dataset.bound) {
+    saveBtn.dataset.bound = "1";
+    saveBtn.addEventListener("click", () => {
+      const theme = document.getElementById("settingTheme");
+      const preset = document.getElementById("settingDefaultPreset");
+      const expand = document.getElementById("settingExpandOnPreset");
+      const remember = document.getElementById("settingRememberApproval");
+      const defaultApproval = document.getElementById("settingDefaultApproval");
+
+      const s = loadSettings();
+      s.theme = theme ? theme.value : "system";
+      s.defaultPreset = preset ? preset.value : "";
+      s.expandOnPreset = expand ? !!expand.checked : true;
+      s.rememberApproval = remember ? !!remember.checked : true;
+      s.defaultApproval = defaultApproval ? !!defaultApproval.checked : false;
+
+      saveSettings(s);
+
+      // Apply instantly
+      applySettings();
+      closeSettingsModal();
+      toast("Settings saved.");
+    });
+  }
+
+  if (resetBtn && !resetBtn.dataset.bound) {
+    resetBtn.dataset.bound = "1";
+    resetBtn.addEventListener("click", () => {
+      saveSettings(defaultSettings());
+      localStorage.removeItem(APPROVAL_KEY);
+      applySettings();
+      closeSettingsModal();
+      toast("Settings reset.");
+    });
+  }
 }
 
 /* =========================
@@ -229,7 +331,6 @@ function setAuthUI() {
   if (loginScreen) loginScreen.classList.toggle("hidden", authed);
   if (appShell) appShell.classList.toggle("hidden", !authed);
 
-  // Clean login status text; use toast for errors instead
   if (authStatus) authStatus.textContent = "";
 
   if (!authed) {
@@ -237,8 +338,8 @@ function setAuthUI() {
     if (approveToggle) approveToggle.checked = false;
     setModePill();
   } else {
-    // When authenticated, ensure utility buttons exist and apply settings
     ensureUtilityButtons();
+    wireSettingsModalButtons();
     applySettings();
   }
 }
@@ -291,7 +392,7 @@ logoutBtn?.addEventListener("click", () => {
 });
 
 /* =========================
-   Conversation (1)
+   Conversation utilities
 ========================= */
 function clearConversation(showToast) {
   history.length = 0;
@@ -392,7 +493,7 @@ exportJsonBtn?.addEventListener("click", () => {
 });
 
 /* =========================
-   Presets (4)
+   Presets
 ========================= */
 const presets = {
   network: `Category: Networking (Switch/Router)
@@ -492,97 +593,29 @@ function collapseMessageBoxIfEmpty() {
   messageEl.rows = 3;
 }
 
-function presetFill(key, opts = { focus: true, expand: true }) {
+function presetFill(key, opts = { focus: true, expand: true, silent: false }) {
   if (!presets[key] || !messageEl) return;
   messageEl.value = presets[key];
 
   const s = loadSettings();
   const expand = opts.expand ?? s.expandOnPreset;
-
   if (expand) expandMessageBox();
   if (opts.focus) messageEl.focus();
-
-  toast(`Loaded ${key} template.`);
+  if (!opts.silent) toast(`Loaded ${key} template.`);
 }
 
 document.querySelectorAll("[data-preset]").forEach((btn) => {
   btn.addEventListener("click", () => {
     const key = btn.getAttribute("data-preset");
-    presetFill(key, { focus: true, expand: true });
+    const s = loadSettings();
+    presetFill(key, { focus: true, expand: s.expandOnPreset, silent: false });
   });
 });
 
 messageEl?.addEventListener("blur", () => collapseMessageBoxIfEmpty());
 
 /* =========================
-   Settings modal (5)
-========================= */
-function openSettingsModal() {
-  const modal = document.getElementById("settingsModal");
-  if (!modal) return;
-
-  const s = loadSettings();
-
-  const preset = document.getElementById("settingDefaultPreset");
-  const expand = document.getElementById("settingExpandOnPreset");
-  const remember = document.getElementById("settingRememberApproval");
-  const defaultApproval = document.getElementById("settingDefaultApproval");
-
-  if (preset) preset.value = s.defaultPreset || "";
-  if (expand) expand.checked = !!s.expandOnPreset;
-  if (remember) remember.checked = !!s.rememberApproval;
-  if (defaultApproval) defaultApproval.checked = !!s.defaultApproval;
-
-  modal.classList.remove("hidden");
-}
-
-function closeSettingsModal() {
-  const modal = document.getElementById("settingsModal");
-  if (!modal) return;
-  modal.classList.add("hidden");
-}
-
-function wireSettingsModalButtons() {
-  const saveBtn = document.getElementById("saveSettingsBtn");
-  const resetBtn = document.getElementById("resetSettingsBtn");
-
-  if (saveBtn && !saveBtn.dataset.bound) {
-    saveBtn.dataset.bound = "1";
-    saveBtn.addEventListener("click", () => {
-      const preset = document.getElementById("settingDefaultPreset");
-      const expand = document.getElementById("settingExpandOnPreset");
-      const remember = document.getElementById("settingRememberApproval");
-      const defaultApproval = document.getElementById("settingDefaultApproval");
-
-      const s = loadSettings();
-      s.defaultPreset = preset ? preset.value : "";
-      s.expandOnPreset = expand ? !!expand.checked : true;
-      s.rememberApproval = remember ? !!remember.checked : true;
-      s.defaultApproval = defaultApproval ? !!defaultApproval.checked : false;
-
-      saveSettings(s);
-
-      // Apply immediately
-      applySettings();
-      closeSettingsModal();
-      toast("Settings saved.");
-    });
-  }
-
-  if (resetBtn && !resetBtn.dataset.bound) {
-    resetBtn.dataset.bound = "1";
-    resetBtn.addEventListener("click", () => {
-      saveSettings(defaultSettings());
-      localStorage.removeItem("ai_agent_approval_default");
-      applySettings();
-      closeSettingsModal();
-      toast("Settings reset.");
-    });
-  }
-}
-
-/* =========================
-   Submit chat to backend (requires token)
+   Submit chat to backend
 ========================= */
 form?.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -662,3 +695,4 @@ setModePill();
 setAuthUI();
 ensureUtilityButtons();
 wireSettingsModalButtons();
+applyTheme(loadSettings().theme);
