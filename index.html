@@ -4,37 +4,67 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>AI Infrastructure Troubleshooting</title>
-  <meta name="description" content="Diagnostics-first. Approval-gated remediation. Paste logs/scripts or upload screenshots." />
+  <meta name="description" content="Restricted access. Login required." />
 
-  <!-- CSS -->
-  <link rel="stylesheet" href="./assets/css/main.css?v=2" />
+  <link rel="stylesheet" href="./assets/css/main.css?v=3" />
 
-  <!-- Preflight styles (shows a helpful message if CSS/JS fail to load) -->
   <style>
-    .preflight {
-      margin: 14px 0;
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,.18);
-      background: rgba(0,0,0,.25);
-      color: rgba(255,255,255,.85);
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      font-size: 13px;
-      line-height: 1.4;
-    }
-    .preflight strong { color: #fff; }
-    .preflight code {
-      background: rgba(255,255,255,.08);
-      padding: 2px 6px;
-      border-radius: 8px;
-    }
+    /* Minimal preflight / fallback */
     .hidden { display: none !important; }
-    h2 { margin: 0 0 8px 0; font-size: 16px; letter-spacing: -0.01em; }
+    .centerPage {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .loginShell {
+      width: min(520px, 100%);
+    }
   </style>
 </head>
 
 <body>
-  <main class="container">
+  <!-- LOGIN SCREEN (shown first) -->
+  <div id="loginScreen" class="centerPage">
+    <div class="loginShell">
+      <div class="card">
+        <div class="brand" style="margin-bottom:10px;">
+          <div class="logo">AI</div>
+          <div>
+            <h1 style="margin:0;">Sign in</h1>
+            <p style="margin:6px 0 0;">Access is restricted. Authenticate to use the troubleshooting agent.</p>
+          </div>
+        </div>
+
+        <form id="loginForm" style="display:grid; gap:10px; margin-top:14px;">
+          <input
+            id="loginUser"
+            class="input"
+            placeholder="Username"
+            autocomplete="username"
+            required
+          />
+          <input
+            id="loginPass"
+            class="input"
+            placeholder="Password"
+            type="password"
+            autocomplete="current-password"
+            required
+          />
+          <button class="btn primary" type="submit">Login</button>
+          <div class="footnote" id="authStatus"></div>
+        </form>
+      </div>
+
+      <div class="footnote" style="margin-top:10px; text-align:center;">
+        Do not paste secrets. Authentication is enforced by the backend.
+      </div>
+    </div>
+  </div>
+
+  <!-- APP (hidden until authenticated) -->
+  <main id="appShell" class="container hidden">
     <header class="header">
       <div class="brand">
         <div class="logo">AI</div>
@@ -43,56 +73,9 @@
           <p>Diagnostics-first. Approval-gated remediation. Paste logs/scripts or upload screenshots.</p>
         </div>
       </div>
-
-      <noscript>
-        <div class="preflight">
-          <strong>JavaScript is disabled.</strong> This app requires JavaScript for login, buttons, chat, and uploads.
-        </div>
-      </noscript>
-
-      <!-- Visible warning if assets fail to load (JS hides this when it runs) -->
-      <div id="preflight" class="preflight">
-        <strong>Loading checks:</strong>
-        If this message stays visible and the page looks plain or buttons don’t work,
-        verify these files exist in your repo root:
-        <code>assets/css/main.css</code> and <code>assets/js/app.js</code>.
-        Then hard refresh (Cmd+Shift+R).
-      </div>
     </header>
 
-    <!-- AUTH / LOGIN CARD -->
-    <section class="card" id="authCard" aria-label="Authentication">
-      <h2>Sign in</h2>
-      <p style="margin:0 0 12px 0; color: rgba(255,255,255,.65);">
-        Access is restricted. Sign in to use the troubleshooting agent.
-      </p>
-
-      <form id="loginForm" style="display:flex; gap:10px; flex-wrap:wrap;">
-        <input
-          id="loginUser"
-          class="input"
-          style="min-width:220px;"
-          placeholder="Username"
-          autocomplete="username"
-          required
-        />
-        <input
-          id="loginPass"
-          class="input"
-          style="min-width:220px;"
-          placeholder="Password"
-          type="password"
-          autocomplete="current-password"
-          required
-        />
-        <button class="btn primary" type="submit">Login</button>
-        <button class="btn secondary" type="button" id="logoutBtn">Logout</button>
-      </form>
-
-      <div class="footnote" id="authStatus" style="margin-top:10px;"></div>
-    </section>
-
-    <!-- Controls -->
+    <!-- Top bar -->
     <section class="card controls" aria-label="Mode and actions">
       <div class="left">
         <span class="pill" id="modePill">Mode: Diagnostics</span>
@@ -102,6 +85,8 @@
           <span class="toggleUi" aria-hidden="true"></span>
           <span class="toggleText">Remediation approved</span>
         </label>
+
+        <button class="btn secondary" type="button" id="logoutBtn" title="Sign out">Logout</button>
       </div>
 
       <div class="right">
@@ -149,25 +134,15 @@
       </div>
     </section>
 
-    <!-- Toast -->
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </main>
 
-  <!-- Backend URLs (must be set BEFORE app.js loads) -->
+  <!-- Backend URLs -->
   <script>
     window.BACKEND_URL = "https://imbedded-csrma-ai-agent.onrender.com/api/chat";
     window.LOGIN_URL = "https://imbedded-csrma-ai-agent.onrender.com/auth/login";
   </script>
 
-  <!-- App JS -->
-  <script src="./assets/js/app.js?v=2"></script>
-
-  <!-- Preflight: hide warning if JS is loaded -->
-  <script>
-    (function () {
-      const pf = document.getElementById("preflight");
-      if (pf) pf.classList.add("hidden");
-    })();
-  </script>
+  <script src="./assets/js/app.js?v=3"></script>
 </body>
 </html>
