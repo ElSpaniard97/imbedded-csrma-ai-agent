@@ -1,15 +1,9 @@
-/* =========================
-   Config
-========================= */
 const APP_NAME = "Infra Troubleshooting Agent";
 
 const TOKEN_KEY = "ai_agent_token";
-const SETTINGS_KEY = "ai_agent_settings_v2";
-const APPROVAL_KEY = "ai_agent_approval_default";
+const SETTINGS_CACHE_KEY = "ai_agent_settings_cache_v1"; // local cache for faster UI
 
-/* =========================
-   DOM References (Login-first)
-========================= */
+// ---------- DOM ----------
 const loginScreen = document.getElementById("loginScreen");
 const appShell = document.getElementById("appShell");
 
@@ -19,7 +13,6 @@ const loginPass = document.getElementById("loginPass");
 const authStatus = document.getElementById("authStatus");
 const logoutBtn = document.getElementById("logoutBtn");
 
-// App UI
 const chatEl = document.getElementById("chat");
 const form = document.getElementById("form");
 const messageEl = document.getElementById("message");
@@ -34,14 +27,9 @@ const exportJsonBtn = document.getElementById("exportJsonBtn");
 
 const toastEl = document.getElementById("toast");
 
-/* =========================
-   State
-========================= */
 const history = [];
 
-/* =========================
-   Toast
-========================= */
+// ---------- Toast ----------
 function toast(msg) {
   if (!toastEl) return;
   toastEl.textContent = msg;
@@ -49,25 +37,97 @@ function toast(msg) {
   setTimeout(() => toastEl.classList.remove("show"), 1800);
 }
 
-/* =========================
-   Auth token helpers
-========================= */
+// ---------- Token ----------
 function getToken() {
   return localStorage.getItem(TOKEN_KEY) || "";
 }
-
 function setToken(token) {
   if (!token) localStorage.removeItem(TOKEN_KEY);
   else localStorage.setItem(TOKEN_KEY, token);
 }
 
-/* =========================
-   Mode helpers
-========================= */
+// ---------- Theme ----------
+function applyTheme(theme) {
+  const root = document.documentElement;
+  root.removeAttribute("data-theme");
+  if (theme === "dark") root.setAttribute("data-theme", "dark");
+  if (theme === "light") root.setAttribute("data-theme", "light");
+  // system => attribute removed; CSS uses prefers-color-scheme
+}
+
+// ---------- Settings defaults ----------
+function defaultSettings() {
+  return {
+    defaultPreset: "",
+    expandOnPreset: true,
+    rememberApproval: true,
+    defaultApproval: false,
+    theme: "system"
+  };
+}
+
+// ---------- Settings cache (local) ----------
+function loadCachedSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_CACHE_KEY);
+    if (!raw) return defaultSettings();
+    return { ...defaultSettings(), ...JSON.parse(raw) };
+  } catch {
+    return defaultSettings();
+  }
+}
+function cacheSettings(s) {
+  localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(s));
+}
+
+// ---------- Settings API ----------
+function settingsBaseUrl() {
+  // Your backend base is same host as chat endpoint
+  // BACKEND_URL is ".../api/chat" → settings is ".../api/settings"
+  if (!window.BACKEND_URL) return "";
+  return window.BACKEND_URL.replace(/\/api\/chat\/?$/, "");
+}
+
+async function apiGetSettings() {
+  const token = getToken();
+  const base = settingsBaseUrl();
+  if (!token || !base) throw new Error("Missing token or backend URL");
+
+  const resp = await fetch(`${base}/api/settings`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+
+  const data = await resp.json().catch(() => ({}));
+  if (resp.status === 401) throw new Error("unauthorized");
+  if (!resp.ok || !data.ok) throw new Error(data.error || "Failed to load settings");
+  return data.settings;
+}
+
+async function apiSaveSettings(settings) {
+  const token = getToken();
+  const base = settingsBaseUrl();
+  if (!token || !base) throw new Error("Missing token or backend URL");
+
+  const resp = await fetch(`${base}/api/settings`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ settings })
+  });
+
+  const data = await resp.json().catch(() => ({}));
+  if (resp.status === 401) throw new Error("unauthorized");
+  if (!resp.ok || !data.ok) throw new Error(data.error || "Failed to save settings");
+  return data.settings;
+}
+
+// ---------- Mode ----------
 function isApproved() {
   return !!approveToggle?.checked;
 }
-
 function setModePill() {
   if (!modePill) return;
   if (isApproved()) {
@@ -79,114 +139,32 @@ function setModePill() {
   }
 }
 
-/* =========================
-   Settings model
-========================= */
-function defaultSettings() {
-  return {
-    defaultPreset: "",
-    expandOnPreset: true,
-    rememberApproval: true,
-    defaultApproval: false,
-    theme: "system" // "system" | "dark" | "light"
-  };
-}
-
-function loadSettings() {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return defaultSettings();
-    const parsed = JSON.parse(raw);
-    return { ...defaultSettings(), ...parsed };
-  } catch {
-    return defaultSettings();
-  }
-}
-
-function saveSettings(settings) {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-}
-
-/* =========================
-   Theme (Light/Dark/System)
-========================= */
-function applyTheme(theme) {
-  const t = theme || "system";
-  const root = document.documentElement;
-
-  // remove explicit attributes first
-  root.removeAttribute("data-theme");
-
-  if (t === "dark") root.setAttribute("data-theme", "dark");
-  else if (t === "light") root.setAttribute("data-theme", "light");
-  // system => no attribute; CSS uses prefers-color-scheme fallback
-}
-
-function applySettings() {
-  const s = loadSettings();
-
-  // Theme
-  applyTheme(s.theme);
-
-  // Approval toggle behavior
-  if (approveToggle) {
-    if (s.rememberApproval) {
-      const remembered = localStorage.getItem(APPROVAL_KEY);
-      if (remembered === "1") approveToggle.checked = true;
-      else if (remembered === "0") approveToggle.checked = false;
-      else approveToggle.checked = !!s.defaultApproval;
-    } else {
-      approveToggle.checked = !!s.defaultApproval;
-    }
-  }
-
-  setModePill();
-
-  // Default preset (fill text area but do not send)
-  if (s.defaultPreset) {
-    presetFill(s.defaultPreset, { focus: false, expand: !!s.expandOnPreset, silent: true });
-  }
-}
-
-function rememberApprovalState() {
-  const s = loadSettings();
-  if (!s.rememberApproval) return;
-  localStorage.setItem(APPROVAL_KEY, isApproved() ? "1" : "0");
-}
-
-/* =========================
-   Utility buttons + Settings Modal UI
-========================= */
+// ---------- Utility Buttons + Settings Modal ----------
 function ensureUtilityButtons() {
   const controlsLeft = document.querySelector(".controls .left");
   const controlsRight = document.querySelector(".controls .right");
   if (!controlsLeft || !controlsRight) return;
 
-  // Clear button
   if (!document.getElementById("clearChatBtn")) {
-    const clearBtn = document.createElement("button");
-    clearBtn.id = "clearChatBtn";
-    clearBtn.type = "button";
-    clearBtn.className = "btn secondary";
-    clearBtn.textContent = "Clear";
-    clearBtn.title = "Clear conversation and start over";
-    clearBtn.addEventListener("click", () => clearConversation(true));
-    controlsRight.prepend(clearBtn);
+    const btn = document.createElement("button");
+    btn.id = "clearChatBtn";
+    btn.type = "button";
+    btn.className = "btn secondary";
+    btn.textContent = "Clear";
+    btn.addEventListener("click", () => clearConversation(true));
+    controlsRight.prepend(btn);
   }
 
-  // Settings button
   if (!document.getElementById("settingsBtn")) {
-    const settingsBtn = document.createElement("button");
-    settingsBtn.id = "settingsBtn";
-    settingsBtn.type = "button";
-    settingsBtn.className = "btn secondary";
-    settingsBtn.textContent = "Settings";
-    settingsBtn.title = "Save preferences for future troubleshooting";
-    settingsBtn.addEventListener("click", () => openSettingsModal());
-    controlsLeft.appendChild(settingsBtn);
+    const btn = document.createElement("button");
+    btn.id = "settingsBtn";
+    btn.type = "button";
+    btn.className = "btn secondary";
+    btn.textContent = "Settings";
+    btn.addEventListener("click", () => openSettingsModal());
+    controlsLeft.appendChild(btn);
   }
 
-  // Modal
   if (!document.getElementById("settingsModal")) {
     const modal = document.createElement("div");
     modal.id = "settingsModal";
@@ -197,9 +175,9 @@ function ensureUtilityButtons() {
         <div class="modalHeader">
           <div>
             <div class="modalTitle">Settings</div>
-            <div class="modalSubtitle">Saved locally in your browser for future sessions.</div>
+            <div class="modalSubtitle">Saved to your account (server-side) for future sessions.</div>
           </div>
-          <button class="btn secondary modalClose" type="button" data-close="1">Close</button>
+          <button class="btn secondary" type="button" data-close="1">Close</button>
         </div>
 
         <div class="modalBody">
@@ -249,7 +227,7 @@ function ensureUtilityButtons() {
 
     modal.addEventListener("click", (e) => {
       const t = e.target;
-      if (t && t.getAttribute && t.getAttribute("data-close") === "1") closeSettingsModal();
+      if (t?.getAttribute?.("data-close") === "1") closeSettingsModal();
     });
   }
 }
@@ -258,19 +236,13 @@ function openSettingsModal() {
   const modal = document.getElementById("settingsModal");
   if (!modal) return;
 
-  const s = loadSettings();
+  const s = loadCachedSettings();
 
-  const theme = document.getElementById("settingTheme");
-  const preset = document.getElementById("settingDefaultPreset");
-  const expand = document.getElementById("settingExpandOnPreset");
-  const remember = document.getElementById("settingRememberApproval");
-  const defaultApproval = document.getElementById("settingDefaultApproval");
-
-  if (theme) theme.value = s.theme || "system";
-  if (preset) preset.value = s.defaultPreset || "";
-  if (expand) expand.checked = !!s.expandOnPreset;
-  if (remember) remember.checked = !!s.rememberApproval;
-  if (defaultApproval) defaultApproval.checked = !!s.defaultApproval;
+  document.getElementById("settingTheme").value = s.theme || "system";
+  document.getElementById("settingDefaultPreset").value = s.defaultPreset || "";
+  document.getElementById("settingExpandOnPreset").checked = !!s.expandOnPreset;
+  document.getElementById("settingRememberApproval").checked = !!s.rememberApproval;
+  document.getElementById("settingDefaultApproval").checked = !!s.defaultApproval;
 
   modal.classList.remove("hidden");
 }
@@ -287,113 +259,104 @@ function wireSettingsModalButtons() {
 
   if (saveBtn && !saveBtn.dataset.bound) {
     saveBtn.dataset.bound = "1";
-    saveBtn.addEventListener("click", () => {
-      const theme = document.getElementById("settingTheme");
-      const preset = document.getElementById("settingDefaultPreset");
-      const expand = document.getElementById("settingExpandOnPreset");
-      const remember = document.getElementById("settingRememberApproval");
-      const defaultApproval = document.getElementById("settingDefaultApproval");
+    saveBtn.addEventListener("click", async () => {
+      try {
+        const next = {
+          theme: document.getElementById("settingTheme").value,
+          defaultPreset: document.getElementById("settingDefaultPreset").value,
+          expandOnPreset: !!document.getElementById("settingExpandOnPreset").checked,
+          rememberApproval: !!document.getElementById("settingRememberApproval").checked,
+          defaultApproval: !!document.getElementById("settingDefaultApproval").checked
+        };
 
-      const s = loadSettings();
-      s.theme = theme ? theme.value : "system";
-      s.defaultPreset = preset ? preset.value : "";
-      s.expandOnPreset = expand ? !!expand.checked : true;
-      s.rememberApproval = remember ? !!remember.checked : true;
-      s.defaultApproval = defaultApproval ? !!defaultApproval.checked : false;
+        // Optimistic apply
+        cacheSettings({ ...defaultSettings(), ...next });
+        applySettingsToUI(cacheSettingsAndReturn());
 
-      saveSettings(s);
+        // Persist server-side
+        const saved = await apiSaveSettings(next);
+        cacheSettings({ ...defaultSettings(), ...saved });
+        applySettingsToUI(cacheSettingsAndReturn());
 
-      // Apply instantly
-      applySettings();
-      closeSettingsModal();
-      toast("Settings saved.");
+        closeSettingsModal();
+        toast("Settings saved (server-side).");
+      } catch (err) {
+        if (String(err?.message) === "unauthorized") {
+          setToken("");
+          setAuthUI();
+          toast("Session expired. Please sign in again.");
+          return;
+        }
+        toast(err?.message || "Failed to save settings");
+      }
     });
   }
 
   if (resetBtn && !resetBtn.dataset.bound) {
     resetBtn.dataset.bound = "1";
-    resetBtn.addEventListener("click", () => {
-      saveSettings(defaultSettings());
-      localStorage.removeItem(APPROVAL_KEY);
-      applySettings();
-      closeSettingsModal();
-      toast("Settings reset.");
+    resetBtn.addEventListener("click", async () => {
+      try {
+        const reset = defaultSettings();
+
+        cacheSettings(reset);
+        applySettingsToUI(reset);
+
+        const saved = await apiSaveSettings(reset);
+        cacheSettings({ ...defaultSettings(), ...saved });
+        applySettingsToUI(cacheSettingsAndReturn());
+
+        closeSettingsModal();
+        toast("Settings reset.");
+      } catch (err) {
+        if (String(err?.message) === "unauthorized") {
+          setToken("");
+          setAuthUI();
+          toast("Session expired. Please sign in again.");
+          return;
+        }
+        toast(err?.message || "Failed to reset settings");
+      }
     });
   }
 }
 
-/* =========================
-   Login-first UI enforcement
-========================= */
+function cacheSettingsAndReturn() {
+  return loadCachedSettings();
+}
+
+function applySettingsToUI(s) {
+  applyTheme(s.theme);
+
+  if (approveToggle) {
+    // On server-side version, "rememberApproval" behavior is UX-level;
+    // we keep the current toggle unless user wants default set.
+    // If user enabled defaultApproval, set toggle accordingly when app loads.
+    approveToggle.checked = !!s.defaultApproval;
+  }
+  setModePill();
+
+  if (s.defaultPreset) {
+    presetFill(s.defaultPreset, { focus: false, expand: !!s.expandOnPreset, silent: true });
+  }
+}
+
+// ---------- Login-first gating ----------
 function setAuthUI() {
   const authed = !!getToken();
-
-  if (loginScreen) loginScreen.classList.toggle("hidden", authed);
-  if (appShell) appShell.classList.toggle("hidden", !authed);
-
+  loginScreen?.classList.toggle("hidden", authed);
+  appShell?.classList.toggle("hidden", !authed);
   if (authStatus) authStatus.textContent = "";
-
   if (!authed) {
-    if (loginPass) loginPass.value = "";
-    if (approveToggle) approveToggle.checked = false;
+    loginPass && (loginPass.value = "");
+    approveToggle && (approveToggle.checked = false);
     setModePill();
   } else {
     ensureUtilityButtons();
     wireSettingsModalButtons();
-    applySettings();
   }
 }
 
-/* =========================
-   Login / Logout
-========================= */
-loginForm?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-
-  try {
-    if (!window.LOGIN_URL) return toast("LOGIN_URL not set in index.html.");
-
-    const username = (loginUser?.value || "").trim();
-    const password = (loginPass?.value || "").trim();
-    if (!username || !password) return toast("Enter username and password.");
-
-    if (authStatus) authStatus.textContent = "Signing in…";
-
-    const resp = await fetch(window.LOGIN_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password })
-    });
-
-    const data = await resp.json().catch(() => ({}));
-
-    if (!resp.ok || !data.ok || !data.token) {
-      if (authStatus) authStatus.textContent = "";
-      return toast(data.error || "Login failed.");
-    }
-
-    setToken(data.token);
-    if (loginPass) loginPass.value = "";
-    if (authStatus) authStatus.textContent = "";
-
-    setAuthUI();
-    toast(`${APP_NAME}: login successful.`);
-  } catch (err) {
-    if (authStatus) authStatus.textContent = "";
-    toast(err?.message || "Login error.");
-  }
-});
-
-logoutBtn?.addEventListener("click", () => {
-  setToken("");
-  clearConversation(false);
-  setAuthUI();
-  toast("Logged out.");
-});
-
-/* =========================
-   Conversation utilities
-========================= */
+// ---------- Conversation ----------
 function clearConversation(showToast) {
   history.length = 0;
   if (chatEl) chatEl.innerHTML = "";
@@ -404,11 +367,8 @@ function clearConversation(showToast) {
   if (showToast) toast("Conversation cleared.");
 }
 
-/* =========================
-   Chat helpers
-========================= */
+// ---------- Chat helpers ----------
 function addBubble(role, text) {
-  if (!chatEl) return null;
   const div = document.createElement("div");
   div.className = `bubble ${role}`;
   div.textContent = text;
@@ -452,14 +412,8 @@ function downloadFile(filename, content, mime) {
   URL.revokeObjectURL(url);
 }
 
-/* =========================
-   Button bindings
-========================= */
-approveToggle?.addEventListener("change", () => {
-  setModePill();
-  rememberApprovalState();
-  toast(isApproved() ? "Remediation approved for next steps." : "Diagnostics mode enabled.");
-});
+// ---------- Buttons ----------
+approveToggle?.addEventListener("change", () => setModePill());
 
 copyTicketBtn?.addEventListener("click", async () => {
   const last = lastAssistantText();
@@ -492,92 +446,12 @@ exportJsonBtn?.addEventListener("click", () => {
   toast("Exported JSON.");
 });
 
-/* =========================
-   Presets
-========================= */
+// ---------- Presets ----------
 const presets = {
-  network: `Category: Networking (Switch/Router)
-Goal: Diagnostics only (no changes)
-
-Environment:
-- Vendor/Model:
-- OS/Version:
-- Topology/Role:
-
-Symptoms:
-- What changed? (time, deploy, config, cabling)
-- Impact scope (# users/services, VLANs, sites)
-
-Evidence (paste outputs):
-- show interface status
-- show interface counters
-- show log | last 50
-- show spanning-tree
-- show ip route
-- traceroute/ping results
-
-What you need:
-- Root cause hypothesis + verification steps`,
-
-  server: `Category: Server OS / Services
-Goal: Diagnostics only (no changes)
-
-Environment:
-- OS (Linux/Windows):
-- Host role/service:
-- Recent changes (patch, deploy, config):
-
-Symptoms:
-- CPU/memory/disk?
-- Service down? errors?
-- Scope/impact:
-
-Evidence (paste outputs/logs):
-- Linux: top/htop, df -h, free -m, journalctl -u <svc>, ss -tulpn
-- Windows: Event Viewer errors, Get-Service, Get-Process, perf counters
-
-What you need:
-- Likely causes ranked + verification commands + what to look for`,
-
-  script: `Category: Script / Automation
-Goal: Fix explanation + corrected snippet (no destructive steps unless approved)
-
-Language/tool:
-- PowerShell / Python / Bash / Ansible / Terraform / YAML/JSON
-
-Input:
-- Paste full error/traceback/logs
-- Paste script (or minimal reproducible snippet)
-
-Context:
-- What should it do?
-- What environment (OS, versions)?
-- Any secrets redacted?
-
-What you need:
-- Root cause + corrected code + validation steps`,
-
-  hardware: `Category: Hardware / Components
-Goal: Diagnostics only (no changes)
-
-Platform:
-- Vendor (Dell/iDRAC, HPE/iLO, Supermicro/IPMI):
-- Model:
-- Alert codes / LEDs / logs:
-
-Symptoms:
-- Power/PSU?
-- Thermals/fans?
-- Storage/RAID?
-- Memory/ECC?
-
-Evidence:
-- Screenshot of alert
-- SEL / lifecycle logs / iLO logs
-- Recent changes (firmware, component swap)
-
-What you need:
-- Likely cause + checks + safe remediation plan (approval-gated)`
+  network: `Category: Networking (Switch/Router)\nGoal: Diagnostics only (no changes)\n\nEnvironment:\n- Vendor/Model:\n- OS/Version:\n- Topology/Role:\n\nSymptoms:\n- What changed? (time, deploy, config, cabling)\n- Impact scope (# users/services, VLANs, sites)\n\nEvidence (paste outputs):\n- show interface status\n- show interface counters\n- show log | last 50\n- show spanning-tree\n- show ip route\n- traceroute/ping results\n\nWhat you need:\n- Root cause hypothesis + verification steps`,
+  server: `Category: Server OS / Services\nGoal: Diagnostics only (no changes)\n\nEnvironment:\n- OS (Linux/Windows):\n- Host role/service:\n- Recent changes (patch, deploy, config):\n\nSymptoms:\n- CPU/memory/disk?\n- Service down? errors?\n- Scope/impact:\n\nEvidence (paste outputs/logs):\n- Linux: top/htop, df -h, free -m, journalctl -u <svc>, ss -tulpn\n- Windows: Event Viewer errors, Get-Service, Get-Process, perf counters\n\nWhat you need:\n- Likely causes ranked + verification commands + what to look for`,
+  script: `Category: Script / Automation\nGoal: Fix explanation + corrected snippet (no destructive steps unless approved)\n\nLanguage/tool:\n- PowerShell / Python / Bash / Ansible / Terraform / YAML/JSON\n\nInput:\n- Paste full error/traceback/logs\n- Paste script (or minimal reproducible snippet)\n\nContext:\n- What should it do?\n- What environment (OS, versions)?\n- Any secrets redacted?\n\nWhat you need:\n- Root cause + corrected code + validation steps`,
+  hardware: `Category: Hardware / Components\nGoal: Diagnostics only (no changes)\n\nPlatform:\n- Vendor (Dell/iDRAC, HPE/iLO, Supermicro/IPMI):\n- Model:\n- Alert codes / LEDs / logs:\n\nSymptoms:\n- Power/PSU?\n- Thermals/fans?\n- Storage/RAID?\n- Memory/ECC?\n\nEvidence:\n- Screenshot of alert\n- SEL / lifecycle logs / iLO logs\n- Recent changes (firmware, component swap)\n\nWhat you need:\n- Likely cause + checks + safe remediation plan (approval-gated)`
 };
 
 function expandMessageBox() {
@@ -586,20 +460,10 @@ function expandMessageBox() {
   messageEl.rows = 10;
 }
 
-function collapseMessageBoxIfEmpty() {
-  if (!messageEl) return;
-  if (messageEl.value.trim()) return;
-  messageEl.classList.remove("expanded");
-  messageEl.rows = 3;
-}
-
 function presetFill(key, opts = { focus: true, expand: true, silent: false }) {
   if (!presets[key] || !messageEl) return;
   messageEl.value = presets[key];
-
-  const s = loadSettings();
-  const expand = opts.expand ?? s.expandOnPreset;
-  if (expand) expandMessageBox();
+  if (opts.expand) expandMessageBox();
   if (opts.focus) messageEl.focus();
   if (!opts.silent) toast(`Loaded ${key} template.`);
 }
@@ -607,16 +471,12 @@ function presetFill(key, opts = { focus: true, expand: true, silent: false }) {
 document.querySelectorAll("[data-preset]").forEach((btn) => {
   btn.addEventListener("click", () => {
     const key = btn.getAttribute("data-preset");
-    const s = loadSettings();
-    presetFill(key, { focus: true, expand: s.expandOnPreset, silent: false });
+    const s = loadCachedSettings();
+    presetFill(key, { focus: true, expand: !!s.expandOnPreset, silent: false });
   });
 });
 
-messageEl?.addEventListener("blur", () => collapseMessageBoxIfEmpty());
-
-/* =========================
-   Submit chat to backend
-========================= */
+// ---------- Submit chat ----------
 form?.addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -639,22 +499,14 @@ form?.addEventListener("submit", async (e) => {
   addBubble("user", rawMessage);
   history.push({ role: "user", content: message });
 
-  if (messageEl) messageEl.value = "";
-  collapseMessageBoxIfEmpty();
-
+  messageEl.value = "";
   const working = addBubble("assistant", "Analyzing… diagnostics in progress…");
 
   try {
-    if (!window.BACKEND_URL) {
-      if (working) working.textContent = "BACKEND_URL not set in index.html.";
-      return;
-    }
-
     const fd = new FormData();
     fd.append("message", message);
     fd.append("history", JSON.stringify(history));
-
-    if (imageEl?.files && imageEl.files[0]) fd.append("image", imageEl.files[0]);
+    if (imageEl?.files?.[0]) fd.append("image", imageEl.files[0]);
 
     const resp = await fetch(window.BACKEND_URL, {
       method: "POST",
@@ -668,31 +520,82 @@ form?.addEventListener("submit", async (e) => {
       setToken("");
       clearConversation(false);
       setAuthUI();
-      if (working) working.textContent = "Session expired. Please sign in again.";
+      working.textContent = "Session expired. Please sign in again.";
       return;
     }
 
     if (!resp.ok || !data.ok) {
-      if (working) working.textContent = `Error: ${data.error || resp.statusText}`;
+      working.textContent = `Error: ${data.error || resp.statusText}`;
       return;
     }
 
-    if (working) working.textContent = data.text || "(No response text)";
+    working.textContent = data.text || "(No response text)";
     history.push({ role: "assistant", content: data.text || "" });
-
     toast("Response received.");
   } catch (err) {
-    if (working) working.textContent = `Error: ${err?.message || "Request failed"}`;
+    working.textContent = `Error: ${err?.message || "Request failed"}`;
   } finally {
     if (imageEl) imageEl.value = "";
   }
 });
 
-/* =========================
-   Init
-========================= */
+// ---------- Login / Logout ----------
+loginForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  try {
+    const username = (loginUser?.value || "").trim();
+    const password = (loginPass?.value || "").trim();
+    if (!username || !password) return toast("Enter username and password.");
+
+    authStatus && (authStatus.textContent = "Signing in…");
+
+    const resp = await fetch(window.LOGIN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.ok || !data.token) {
+      authStatus && (authStatus.textContent = "");
+      return toast(data.error || "Login failed.");
+    }
+
+    setToken(data.token);
+    loginPass.value = "";
+    authStatus && (authStatus.textContent = "");
+
+    // After login: fetch server settings
+    setAuthUI();
+    ensureUtilityButtons();
+    wireSettingsModalButtons();
+
+    try {
+      const serverSettings = await apiGetSettings();
+      cacheSettings({ ...defaultSettings(), ...serverSettings });
+      applySettingsToUI(loadCachedSettings());
+    } catch (err) {
+      // If settings fail, continue with cached defaults
+      cacheSettings(loadCachedSettings());
+      applySettingsToUI(loadCachedSettings());
+    }
+
+    toast(`${APP_NAME}: login successful.`);
+  } catch (err) {
+    authStatus && (authStatus.textContent = "");
+    toast(err?.message || "Login error.");
+  }
+});
+
+logoutBtn?.addEventListener("click", () => {
+  setToken("");
+  clearConversation(false);
+  setAuthUI();
+  toast("Logged out.");
+});
+
+// ---------- Init ----------
 setModePill();
 setAuthUI();
-ensureUtilityButtons();
-wireSettingsModalButtons();
-applyTheme(loadSettings().theme);
+applyTheme(loadCachedSettings().theme);
