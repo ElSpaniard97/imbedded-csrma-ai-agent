@@ -4,6 +4,8 @@ import multer from "multer";
 import OpenAI from "openai";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { promises as fs } from "fs";
+import path from "path";
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -24,7 +26,7 @@ app.use(
       if (ALLOWED_ORIGINS.has(origin)) return cb(null, true);
       return cb(new Error(`CORS blocked for origin: ${origin}`), false);
     },
-    methods: ["GET", "POST", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     optionsSuccessStatus: 204
   })
@@ -35,10 +37,10 @@ app.use(express.json({ limit: "10mb" }));
 /* ---------- MULTER (FormData) ---------- */
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 6 * 1024 * 1024 }
+  limits: { fileSize: 6 * 1024 * 1024 } // 6MB
 });
 
-/* ---------- Auth helpers ---------- */
+/* ---------- Helpers ---------- */
 function requireEnv(name) {
   if (!process.env[name]) throw new Error(`Missing env var: ${name}`);
   return process.env[name];
@@ -46,7 +48,6 @@ function requireEnv(name) {
 
 function issueToken(username) {
   const secret = requireEnv("JWT_SECRET");
-  // 8 hours is a reasonable default; change as you like
   return jwt.sign({ sub: username }, secret, { expiresIn: "8h" });
 }
 
@@ -61,7 +62,7 @@ function authMiddleware(req, res, next) {
     }
 
     const payload = jwt.verify(token, secret);
-    req.user = payload;
+    req.user = payload; // payload.sub is username
     return next();
   } catch {
     return res.status(401).json({ ok: false, error: "Unauthorized" });
@@ -127,6 +128,66 @@ function normalizeHistory(history) {
     .map((x) => ({ role: x.role, content: x.content }));
 }
 
+/* =========================
+   Server-side Settings Store
+========================= */
+const SETTINGS_PATH = process.env.SETTINGS_PATH || "/data/settings.json";
+
+function defaultSettings() {
+  return {
+    defaultPreset: "",
+    expandOnPreset: true,
+    rememberApproval: true,
+    defaultApproval: false,
+    theme: "system" // system | dark | light
+  };
+}
+
+// Allow-list validation to prevent arbitrary writes
+function sanitizeSettings(input) {
+  const base = defaultSettings();
+  const out = { ...base };
+
+  if (!input || typeof input !== "object") return out;
+
+  if (typeof input.defaultPreset === "string") out.defaultPreset = input.defaultPreset;
+  if (typeof input.expandOnPreset === "boolean") out.expandOnPreset = input.expandOnPreset;
+  if (typeof input.rememberApproval === "boolean") out.rememberApproval = input.rememberApproval;
+  if (typeof input.defaultApproval === "boolean") out.defaultApproval = input.defaultApproval;
+
+  if (input.theme === "system" || input.theme === "dark" || input.theme === "light") {
+    out.theme = input.theme;
+  }
+
+  // hard limit preset values
+  const allowedPresets = new Set(["", "network", "server", "script", "hardware"]);
+  if (!allowedPresets.has(out.defaultPreset)) out.defaultPreset = "";
+
+  return out;
+}
+
+async function ensureDirForFile(filePath) {
+  const dir = path.dirname(filePath);
+  await fs.mkdir(dir, { recursive: true });
+}
+
+async function readSettingsFile() {
+  try {
+    const raw = await fs.readFile(SETTINGS_PATH, "utf8");
+    const json = JSON.parse(raw);
+    return (json && typeof json === "object") ? json : {};
+  } catch {
+    return {};
+  }
+}
+
+async function writeSettingsFile(allSettings) {
+  await ensureDirForFile(SETTINGS_PATH);
+  const tmp = SETTINGS_PATH + ".tmp";
+  await fs.writeFile(tmp, JSON.stringify(allSettings, null, 2), "utf8");
+  await fs.rename(tmp, SETTINGS_PATH);
+}
+
 /* ---------- Routes ---------- */
 app.get("/", (req, res) => {
   res.status(200).send("Backend running. Use GET /healthz, POST /auth/login, POST /api/chat.");
@@ -151,8 +212,6 @@ app.post("/auth/login", async (req, res) => {
       return res.status(400).json({ ok: false, error: "Username and password are required" });
     }
 
-    // Constant-time-ish compare via bcrypt hash computed from env password
-    // (We avoid storing plaintext in code/repo; env still holds plaintext—acceptable for many small deployments)
     const passHash = bcrypt.hashSync(adminPass, 10);
     const userOk = String(username) === String(adminUser);
     const passOk = bcrypt.compareSync(String(password), passHash);
@@ -165,6 +224,46 @@ app.post("/auth/login", async (req, res) => {
     return res.json({ ok: true, token });
   } catch (err) {
     console.error("Login error:", err);
+    return res.status(500).json({ ok: false, error: "Internal server error" });
+  }
+});
+
+/**
+ * GET server-side settings for logged-in user
+ */
+app.get("/api/settings", authMiddleware, async (req, res) => {
+  try {
+    const username = String(req.user?.sub || "");
+    if (!username) return res.status(401).json({ ok: false, error: "Unauthorized" });
+
+    const all = await readSettingsFile();
+    const userSettings = sanitizeSettings(all[username] || {});
+    return res.json({ ok: true, settings: userSettings });
+  } catch (err) {
+    console.error("GET settings error:", err);
+    return res.status(500).json({ ok: false, error: "Internal server error" });
+  }
+});
+
+/**
+ * PUT server-side settings for logged-in user
+ * Body: { settings: {...} } OR {...}
+ */
+app.put("/api/settings", authMiddleware, async (req, res) => {
+  try {
+    const username = String(req.user?.sub || "");
+    if (!username) return res.status(401).json({ ok: false, error: "Unauthorized" });
+
+    const incoming = req.body?.settings ? req.body.settings : req.body;
+    const next = sanitizeSettings(incoming);
+
+    const all = await readSettingsFile();
+    all[username] = next;
+    await writeSettingsFile(all);
+
+    return res.json({ ok: true, settings: next });
+  } catch (err) {
+    console.error("PUT settings error:", err);
     return res.status(500).json({ ok: false, error: "Internal server error" });
   }
 });
