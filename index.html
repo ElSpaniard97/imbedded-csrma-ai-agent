@@ -4,104 +4,142 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Jenko — AI Infrastructure Troubleshooting</title>
-
   <meta name="description" content="Jenko — Diagnostics-first AI with approval-gated remediation." />
 
-  <link rel="stylesheet" href="./assets/css/main.css?v=4" />
+  <link rel="stylesheet" href="./assets/css/main.css?v=10" />
 </head>
 
 <body>
-  <!-- LOGIN -->
+  <!-- LOGIN SCREEN -->
   <div id="loginScreen" class="centerPage">
-    <div class="loginShell card">
-      <div class="brand">
-        <div class="logo">🐂</div>
-        <div>
-          <h1>Jenko</h1>
-          <p>Secure AI Infrastructure Troubleshooting</p>
+    <div class="loginShell">
+      <div class="card loginCard">
+        <div class="brandRow">
+          <img class="brandLogo" src="./assets/img/jenko-bull.png" alt="Jenko logo" onerror="this.style.display='none'" />
+          <div class="brandText">
+            <div class="brandKicker">Jenko</div>
+            <h1 class="brandTitle">Sign in</h1>
+            <p class="brandSub">Restricted access. Authenticate to use the troubleshooting agent.</p>
+          </div>
+        </div>
+
+        <form id="loginForm" class="loginForm" autocomplete="on">
+          <label class="field">
+            <span class="label">Username</span>
+            <input id="loginUser" class="input" placeholder="AIHero" autocomplete="username" required />
+          </label>
+
+          <label class="field">
+            <span class="label">Password</span>
+            <input id="loginPass" class="input" placeholder="••••••••••" type="password" autocomplete="current-password" required />
+          </label>
+
+          <button class="btn primary" type="submit" id="loginBtn">Login</button>
+          <div class="status" id="authStatus" aria-live="polite"></div>
+        </form>
+
+        <div class="footnote">
+          Do not paste secrets. Authentication is enforced server-side.
         </div>
       </div>
-
-      <form id="loginForm">
-        <input id="loginUser" class="input" placeholder="Username" required />
-        <input id="loginPass" class="input" type="password" placeholder="Password" required />
-        <button class="btn primary" type="submit">Login</button>
-        <div id="authStatus" class="status"></div>
-      </form>
     </div>
   </div>
 
-  <!-- APP -->
-  <main id="appShell" class="container hidden">
-    <header class="header">
-      <div class="brand">
-        <div class="logo">🐂</div>
-        <div>
-          <h1>Jenko</h1>
-          <p>Diagnostics-first • Approval-gated remediation</p>
+  <!-- APP (hidden until authenticated) -->
+  <main id="appShell" class="container hidden" aria-label="Jenko App">
+    <header class="topbar">
+      <div class="brandRow">
+        <img class="brandLogo" src="./assets/img/jenko-bull.png" alt="Jenko logo" onerror="this.style.display='none'" />
+        <div class="brandText">
+          <div class="brandKicker">Jenko</div>
+          <h1 class="brandTitle">Infrastructure Troubleshooting</h1>
+          <p class="brandSub">Diagnostics-first. Approval-gated remediation. Paste logs/scripts or attach screenshots.</p>
         </div>
       </div>
 
-      <div class="headerActions">
-        <button id="themeToggle" class="btn ghost">Light / Dark</button>
-        <button id="logoutBtn" class="btn ghost">Logout</button>
+      <div class="topbarActions">
+        <button class="btn ghost" type="button" id="themeToggle" title="Toggle theme">Light / Dark</button>
+        <button class="btn ghost" type="button" id="logoutBtn" title="Sign out">Logout</button>
       </div>
     </header>
 
     <!-- CONTROLS -->
-    <section class="card controls">
-      <div class="left">
-        <span id="modePill" class="pill">Diagnostics Mode</span>
+    <section class="card controls" aria-label="Mode and actions">
+      <div class="controlsLeft">
+        <span class="pill" id="modePill">Mode: Diagnostics</span>
 
-        <label class="toggle">
+        <label class="toggle" title="Enable only if you approve production-impacting remediation">
           <input type="checkbox" id="approveToggle" />
-          <span></span>
-          Remediation Approved
+          <span class="toggleUI" aria-hidden="true"></span>
+          <span class="toggleText">Remediation approved</span>
         </label>
 
-        <button id="clearChatBtn" class="btn danger">Clear</button>
+        <button class="btn danger" type="button" id="clearChatBtn" title="Clear conversation">Clear</button>
       </div>
 
-      <div class="right">
-        <button id="copyTicketBtn" class="btn">Copy Notes</button>
-        <button id="exportTxtBtn" class="btn">TXT</button>
-        <button id="exportJsonBtn" class="btn">JSON</button>
+      <div class="controlsRight">
+        <button class="btn secondary" type="button" id="saveSettingsBtn" title="Save settings">Save settings</button>
+        <button class="btn secondary" type="button" id="loadSettingsBtn" title="Load settings">Load settings</button>
+
+        <div class="divider" aria-hidden="true"></div>
+
+        <button class="btn secondary" type="button" id="copyTicketBtn">Copy Ticket Notes</button>
+        <button class="btn secondary" type="button" id="exportTxtBtn">Export TXT</button>
+        <button class="btn secondary" type="button" id="exportJsonBtn">Export JSON</button>
       </div>
     </section>
 
     <!-- PRESETS -->
-    <section class="card presets">
-      <button class="chip" data-preset="network">Network</button>
-      <button class="chip" data-preset="server">Server</button>
-      <button class="chip" data-preset="script">Script</button>
-      <button class="chip" data-preset="hardware">Hardware</button>
+    <section class="card presets" aria-label="Preset intake templates">
+      <div class="presetRow">
+        <button class="chip" type="button" data-preset="network">Network</button>
+        <button class="chip" type="button" data-preset="server">Server</button>
+        <button class="chip" type="button" data-preset="script">Script</button>
+        <button class="chip" type="button" data-preset="hardware">Hardware</button>
+      </div>
+      <div class="hint">
+        Tip: Click a preset to auto-fill a structured intake template and expand the editor.
+      </div>
     </section>
 
     <!-- CHAT -->
-    <section class="card chatWrap">
-      <div id="chat" class="chat"></div>
+    <section class="card chatWrap" aria-label="Chat transcript">
+      <div class="chat" id="chat"></div>
     </section>
 
     <!-- COMPOSER -->
-    <section class="card composerWrap">
-      <form id="form" class="composer">
-        <input type="file" id="image" accept="image/*" />
+    <section class="card composerWrap" aria-label="Message input">
+      <form class="composer" id="form">
+        <label class="fileBtn" title="Attach a screenshot (no secrets)">
+          <input type="file" id="image" accept="image/*" />
+          Attach screenshot
+        </label>
+
         <textarea
           id="message"
+          class="input textarea"
           rows="3"
-          placeholder="Describe the issue, paste logs, or reference a script…"
+          placeholder="Describe the issue or paste logs/errors/scripts…"
           required
         ></textarea>
-        <button class="btn primary" type="submit">Send</button>
+
+        <button class="btn primary" type="submit" id="sendBtn">Send</button>
       </form>
+
+      <div class="footnote">
+        Do not paste secrets (keys/passwords). Jenko produces ticket-safe notes.
+      </div>
     </section>
+
+    <div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
   </main>
 
+  <!-- Configure backend base URL (no trailing slash) -->
   <script>
-    window.BACKEND_URL = "https://imbedded-csrma-ai-agent.onrender.com/api/chat";
-    window.LOGIN_URL   = "https://imbedded-csrma-ai-agent.onrender.com/auth/login";
+    // Your Render service base URL:
+    window.API_BASE = "https://imbedded-csrma-ai-agent.onrender.com";
   </script>
 
-  <script src="./assets/js/app.js?v=4"></script>
+  <script src="./assets/js/app.js?v=10"></script>
 </body>
 </html>
