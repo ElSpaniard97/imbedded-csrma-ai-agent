@@ -1,148 +1,107 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>AI Infrastructure Troubleshooting</title>
-  <meta name="description" content="Restricted access. Login required." />
+  <title>Jenko — AI Infrastructure Troubleshooting</title>
 
-  <link rel="stylesheet" href="./assets/css/main.css?v=3" />
+  <meta name="description" content="Jenko — Diagnostics-first AI with approval-gated remediation." />
 
-  <style>
-    /* Minimal preflight / fallback */
-    .hidden { display: none !important; }
-    .centerPage {
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      padding: 24px;
-    }
-    .loginShell {
-      width: min(520px, 100%);
-    }
-  </style>
+  <link rel="stylesheet" href="./assets/css/main.css?v=4" />
 </head>
 
 <body>
-  <!-- LOGIN SCREEN (shown first) -->
+  <!-- LOGIN -->
   <div id="loginScreen" class="centerPage">
-    <div class="loginShell">
-      <div class="card">
-        <div class="brand" style="margin-bottom:10px;">
-          <div class="logo">AI</div>
-          <div>
-            <h1 style="margin:0;">Sign in</h1>
-            <p style="margin:6px 0 0;">Access is restricted. Authenticate to use the troubleshooting agent.</p>
-          </div>
+    <div class="loginShell card">
+      <div class="brand">
+        <div class="logo">🐂</div>
+        <div>
+          <h1>Jenko</h1>
+          <p>Secure AI Infrastructure Troubleshooting</p>
         </div>
-
-        <form id="loginForm" style="display:grid; gap:10px; margin-top:14px;">
-          <input
-            id="loginUser"
-            class="input"
-            placeholder="Username"
-            autocomplete="username"
-            required
-          />
-          <input
-            id="loginPass"
-            class="input"
-            placeholder="Password"
-            type="password"
-            autocomplete="current-password"
-            required
-          />
-          <button class="btn primary" type="submit">Login</button>
-          <div class="footnote" id="authStatus"></div>
-        </form>
       </div>
 
-      <div class="footnote" style="margin-top:10px; text-align:center;">
-        Do not paste secrets. Authentication is enforced by the backend.
-      </div>
+      <form id="loginForm">
+        <input id="loginUser" class="input" placeholder="Username" required />
+        <input id="loginPass" class="input" type="password" placeholder="Password" required />
+        <button class="btn primary" type="submit">Login</button>
+        <div id="authStatus" class="status"></div>
+      </form>
     </div>
   </div>
 
-  <!-- APP (hidden until authenticated) -->
+  <!-- APP -->
   <main id="appShell" class="container hidden">
     <header class="header">
       <div class="brand">
-        <div class="logo">AI</div>
+        <div class="logo">🐂</div>
         <div>
-          <h1>Infrastructure Troubleshooting</h1>
-          <p>Diagnostics-first. Approval-gated remediation. Paste logs/scripts or upload screenshots.</p>
+          <h1>Jenko</h1>
+          <p>Diagnostics-first • Approval-gated remediation</p>
         </div>
+      </div>
+
+      <div class="headerActions">
+        <button id="themeToggle" class="btn ghost">Light / Dark</button>
+        <button id="logoutBtn" class="btn ghost">Logout</button>
       </div>
     </header>
 
-    <!-- Top bar -->
-    <section class="card controls" aria-label="Mode and actions">
+    <!-- CONTROLS -->
+    <section class="card controls">
       <div class="left">
-        <span class="pill" id="modePill">Mode: Diagnostics</span>
+        <span id="modePill" class="pill">Diagnostics Mode</span>
 
-        <label class="toggle" title="Enable only if you approve production-impacting remediation">
+        <label class="toggle">
           <input type="checkbox" id="approveToggle" />
-          <span class="toggleUi" aria-hidden="true"></span>
-          <span class="toggleText">Remediation approved</span>
+          <span></span>
+          Remediation Approved
         </label>
 
-        <button class="btn secondary" type="button" id="logoutBtn" title="Sign out">Logout</button>
+        <button id="clearChatBtn" class="btn danger">Clear</button>
       </div>
 
       <div class="right">
-        <button class="btn secondary" type="button" id="copyTicketBtn">Copy Ticket Notes</button>
-        <button class="btn secondary" type="button" id="exportTxtBtn">Export TXT</button>
-        <button class="btn secondary" type="button" id="exportJsonBtn">Export JSON</button>
+        <button id="copyTicketBtn" class="btn">Copy Notes</button>
+        <button id="exportTxtBtn" class="btn">TXT</button>
+        <button id="exportJsonBtn" class="btn">JSON</button>
       </div>
     </section>
 
-    <!-- Presets -->
-    <section class="card presets" aria-label="Preset intake templates">
-      <button class="chip" type="button" data-preset="network">Network</button>
-      <button class="chip" type="button" data-preset="server">Server</button>
-      <button class="chip" type="button" data-preset="script">Script</button>
-      <button class="chip" type="button" data-preset="hardware">Hardware</button>
-      <span class="hint">Use a preset to generate a structured intake template.</span>
+    <!-- PRESETS -->
+    <section class="card presets">
+      <button class="chip" data-preset="network">Network</button>
+      <button class="chip" data-preset="server">Server</button>
+      <button class="chip" data-preset="script">Script</button>
+      <button class="chip" data-preset="hardware">Hardware</button>
     </section>
 
-    <!-- Chat -->
-    <section class="card chatWrap" aria-label="Chat">
-      <div class="chat" id="chat" aria-label="Chat transcript"></div>
+    <!-- CHAT -->
+    <section class="card chatWrap">
+      <div id="chat" class="chat"></div>
     </section>
 
-    <!-- Composer -->
-    <section class="card composerWrap" aria-label="Message input">
-      <form class="composer" id="form">
-        <label class="fileBtn" title="Attach a screenshot (no secrets)">
-          <input type="file" id="image" accept="image/*" />
-          Attach screenshot
-        </label>
-
+    <!-- COMPOSER -->
+    <section class="card composerWrap">
+      <form id="form" class="composer">
+        <input type="file" id="image" accept="image/*" />
         <textarea
           id="message"
-          class="input"
           rows="3"
-          placeholder="Describe the issue or paste logs/errors/scripts…"
+          placeholder="Describe the issue, paste logs, or reference a script…"
           required
         ></textarea>
-
-        <button class="btn primary" type="submit" id="sendBtn">Send</button>
+        <button class="btn primary" type="submit">Send</button>
       </form>
-
-      <div class="footnote">
-        Do not paste secrets (keys/passwords). Outputs are designed to be ticket-safe.
-      </div>
     </section>
-
-    <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </main>
 
-  <!-- Backend URLs -->
   <script>
     window.BACKEND_URL = "https://imbedded-csrma-ai-agent.onrender.com/api/chat";
-    window.LOGIN_URL = "https://imbedded-csrma-ai-agent.onrender.com/auth/login";
+    window.LOGIN_URL   = "https://imbedded-csrma-ai-agent.onrender.com/auth/login";
   </script>
 
-  <script src="./assets/js/app.js?v=3"></script>
+  <script src="./assets/js/app.js?v=4"></script>
 </body>
 </html>
