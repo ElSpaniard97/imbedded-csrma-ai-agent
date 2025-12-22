@@ -3,146 +3,95 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>AI Infrastructure Troubleshooting</title>
-  <meta name="description" content="Restricted access. Login required." />
-
-  <link rel="stylesheet" href="./assets/css/main.css?v=3" />
-
-  <style>
-    /* Minimal preflight / fallback */
-    .hidden { display: none !important; }
-    .centerPage {
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      padding: 24px;
-    }
-    .loginShell {
-      width: min(520px, 100%);
-    }
-  </style>
+  <title>AI Infrastructure Troubleshooting Agent</title>
+  <meta name="description" content="A change-controlled troubleshooting GPT for servers, networking, scripts, and hardware." />
+  <link rel="stylesheet" href="./assets/css/main.css" />
 </head>
-
 <body>
-  <!-- LOGIN SCREEN (shown first) -->
-  <div id="loginScreen" class="centerPage">
-    <div class="loginShell">
-      <div class="card">
-        <div class="brand" style="margin-bottom:10px;">
-          <div class="logo">AI</div>
-          <div>
-            <h1 style="margin:0;">Sign in</h1>
-            <p style="margin:6px 0 0;">Access is restricted. Authenticate to use the troubleshooting agent.</p>
-          </div>
+  <header class="header">
+    <div class="container header-inner">
+      <a class="brand" href="./index.html">
+        <div class="mark">AI</div>
+        <div class="brand-text">
+          <div class="brand-title">AI Infrastructure Troubleshooting Agent</div>
+          <div class="brand-subtitle">Diagnostics-first • Approval-gated remediation</div>
         </div>
+      </a>
 
-        <form id="loginForm" style="display:grid; gap:10px; margin-top:14px;">
-          <input
-            id="loginUser"
-            class="input"
-            placeholder="Username"
-            autocomplete="username"
-            required
-          />
-          <input
-            id="loginPass"
-            class="input"
-            placeholder="Password"
-            type="password"
-            autocomplete="current-password"
-            required
-          />
-          <button class="btn primary" type="submit">Login</button>
-          <div class="footnote" id="authStatus"></div>
-        </form>
-      </div>
+      <nav class="nav" aria-label="Primary">
+        <a class="nav-link is-active" href="./index.html">Home</a>
+        <a class="nav-link" href="./capabilities.html">Capabilities</a>
+        <a class="nav-link" href="./workflow.html">Workflow</a>
+        <a class="nav-link" href="./prompts.html">Prompts</a>
+        <a class="nav-link" href="./faq.html">FAQ</a>
+      </nav>
 
-      <div class="footnote" style="margin-top:10px; text-align:center;">
-        Do not paste secrets. Authentication is enforced by the backend.
+      <div class="actions">
+        <button class="btn btn-ghost" id="themeToggle" type="button">Theme</button>
+        <a class="btn btn-primary" id="launchBtn"
+           href="https://chatgpt.com/g/g-69441b1b5d0c81918300df5e63b0e079-ai-infrastructure-troubleshooting-agent"
+           target="_blank" rel="noreferrer">Launch</a>
       </div>
     </div>
-  </div>
+  </header>
 
-  <!-- APP (hidden until authenticated) -->
-  <main id="appShell" class="container hidden">
-    <header class="header">
-      <div class="brand">
-        <div class="logo">AI</div>
-        <div>
-          <h1>Infrastructure Troubleshooting</h1>
-          <p>Diagnostics-first. Approval-gated remediation. Paste logs/scripts or upload screenshots.</p>
-        </div>
-      </div>
-    </header>
+  <main class="container">
+    <section class="hero">
+      <p class="pill">Published GPT</p>
+      <h1>Faster triage. Safer fixes.</h1>
+      <p class="lead">
+        A structured troubleshooting assistant for <strong>servers</strong>, <strong>switches/routers</strong>,
+        <strong>scripts</strong>, and <strong>hardware alerts</strong>. Starts in diagnostics mode and requires explicit approval
+        before remediation steps.
+      </p>
 
-    <!-- Top bar -->
-    <section class="card controls" aria-label="Mode and actions">
-      <div class="left">
-        <span class="pill" id="modePill">Mode: Diagnostics</span>
-
-        <label class="toggle" title="Enable only if you approve production-impacting remediation">
-          <input type="checkbox" id="approveToggle" />
-          <span class="toggleUi" aria-hidden="true"></span>
-          <span class="toggleText">Remediation approved</span>
-        </label>
-
-        <button class="btn secondary" type="button" id="logoutBtn" title="Sign out">Logout</button>
+      <div class="cta">
+        <a class="btn btn-primary" href="https://chatgpt.com/g/g-69441b1b5d0c81918300df5e63b0e079-ai-infrastructure-troubleshooting-agent" target="_blank" rel="noreferrer">Launch Agent</a>
+        <button class="btn btn-secondary" id="copyAgentLink" type="button">Copy Link</button>
       </div>
 
-      <div class="right">
-        <button class="btn secondary" type="button" id="copyTicketBtn">Copy Ticket Notes</button>
-        <button class="btn secondary" type="button" id="exportTxtBtn">Export TXT</button>
-        <button class="btn secondary" type="button" id="exportJsonBtn">Export JSON</button>
+      <div class="cards">
+        <article class="card">
+          <div class="card-title">Diagnostics-first</div>
+          <div class="card-text">Evidence-driven, read-only verification commands and interpretation.</div>
+        </article>
+        <article class="card">
+          <div class="card-title">Change control</div>
+          <div class="card-text">Remediation is approval-gated and includes rollback + validation.</div>
+        </article>
+        <article class="card">
+          <div class="card-title">Multi-domain</div>
+          <div class="card-text">Networking, OS/services, scripts/automation, and hardware components.</div>
+        </article>
       </div>
     </section>
 
-    <!-- Presets -->
-    <section class="card presets" aria-label="Preset intake templates">
-      <button class="chip" type="button" data-preset="network">Network</button>
-      <button class="chip" type="button" data-preset="server">Server</button>
-      <button class="chip" type="button" data-preset="script">Script</button>
-      <button class="chip" type="button" data-preset="hardware">Hardware</button>
-      <span class="hint">Use a preset to generate a structured intake template.</span>
-    </section>
+    <section class="section">
+      <div class="section-head">
+        <h2>Quick start</h2>
+        <p class="muted">Use prompts to standardize incident intake.</p>
+      </div>
 
-    <!-- Chat -->
-    <section class="card chatWrap" aria-label="Chat">
-      <div class="chat" id="chat" aria-label="Chat transcript"></div>
-    </section>
+      <div class="grid">
+        <a class="tile" href="./prompts.html">
+          <div class="tile-title">Open Prompt Library</div>
+          <div class="tile-text">Copy/paste starter prompts for common scenarios.</div>
+        </a>
 
-    <!-- Composer -->
-    <section class="card composerWrap" aria-label="Message input">
-      <form class="composer" id="form">
-        <label class="fileBtn" title="Attach a screenshot (no secrets)">
-          <input type="file" id="image" accept="image/*" />
-          Attach screenshot
-        </label>
-
-        <textarea
-          id="message"
-          class="input"
-          rows="3"
-          placeholder="Describe the issue or paste logs/errors/scripts…"
-          required
-        ></textarea>
-
-        <button class="btn primary" type="submit" id="sendBtn">Send</button>
-      </form>
-
-      <div class="footnote">
-        Do not paste secrets (keys/passwords). Outputs are designed to be ticket-safe.
+        <a class="tile" href="./workflow.html">
+          <div class="tile-title">See the Workflow</div>
+          <div class="tile-text">Diagnostics → intent gate → approval → remediation.</div>
+        </a>
       </div>
     </section>
 
-    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <footer class="footer">
+      <div class="muted">© Showcase site for your published GPT.</div>
+      <a class="link" href="https://chatgpt.com/g/g-69441b1b5d0c81918300df5e63b0e079-ai-infrastructure-troubleshooting-agent" target="_blank" rel="noreferrer">Launch GPT</a>
+    </footer>
   </main>
 
-  <!-- Backend URLs -->
-  <script>
-    window.BACKEND_URL = "https://imbedded-csrma-ai-agent.onrender.com/api/chat";
-    window.LOGIN_URL = "https://imbedded-csrma-ai-agent.onrender.com/auth/login";
-  </script>
-
-  <script src="./assets/js/app.js?v=3"></script>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="./assets/js/main.js"></script>
 </body>
 </html>
