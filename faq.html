@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>FAQ • AI Infrastructure Troubleshooting Agent</title>
+  <link rel="stylesheet" href="./assets/css/main.css" />
+</head>
+<body>
+  <header class="header">
+    <div class="container header-inner">
+      <a class="brand" href="./index.html">
+        <div class="mark">AI</div>
+        <div class="brand-text">
+          <div class="brand-title">AI Infrastructure Troubleshooting Agent</div>
+          <div class="brand-subtitle">FAQ</div>
+        </div>
+      </a>
+
+      <nav class="nav" aria-label="Primary">
+        <a class="nav-link" href="./index.html">Home</a>
+        <a class="nav-link" href="./capabilities.html">Capabilities</a>
+        <a class="nav-link" href="./workflow.html">Workflow</a>
+        <a class="nav-link" href="./prompts.html">Prompts</a>
+        <a class="nav-link is-active" href="./faq.html">FAQ</a>
+      </nav>
+
+      <div class="actions">
+        <button class="btn btn-ghost" id="themeToggle" type="button">Theme</button>
+        <a class="btn btn-primary"
+           href="https://chatgpt.com/g/g-69441b1b5d0c81918300df5e63b0e079-ai-infrastructure-troubleshooting-agent"
+           target="_blank" rel="noreferrer">Launch</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="section">
+      <div class="section-head">
+        <h1 class="h1">FAQ</h1>
+        <p class="muted">Operational notes and expectations.</p>
+      </div>
+
+      <div class="faq">
+        <details open>
+          <summary>Can the GPT run commands on my systems?</summary>
+          <div class="muted">No. It provides guidance and interpretation. You remain in control of execution.</div>
+        </details>
+        <details>
+          <summary>Why is remediation approval-gated?</summary>
+          <div class="muted">To align with enterprise change-control. Diagnostics is read-only; remediation requires explicit approval.</div>
+        </details>
+        <details>
+          <summary>Can I paste screenshots?</summary>
+          <div class="muted">Yes. Paste screenshots, logs, errors, or full scripts. The GPT will extract the key details.</div>
+        </details>
+        <details>
+          <summary>What should I save in tickets?</summary>
+          <div class="muted">Save Diagnostics (symptoms, scope, tests, interpretation). Add Remediation (steps, rollback, validation) only if changes are made.</div>
+        </details>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <button class="btn btn-secondary" id="copyAgentLink" type="button">Copy Agent Link</button>
+      <a class="link" href="https://chatgpt.com/g/g-69441b1b5d0c81918300df5e63b0e079-ai-infrastructure-troubleshooting-agent" target="_blank" rel="noreferrer">Launch GPT</a>
+    </footer>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="./assets/js/main.js"></script>
+</body>
+</html>
