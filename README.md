@@ -1,218 +1,187 @@
-AI Infrastructure Troubleshooting Agent
+# AI Infrastructure Troubleshooting Agent
 
-Diagnostics-first. Approval-gated remediation. Ticket-safe output.
+A change-controlled AI troubleshooting assistant for enterprise IT environments. Designed to standardize diagnostics and safely gate remediation across networking, servers, scripts, and hardware components.
 
-This project is a web-based interface for an AI Infrastructure Troubleshooting Agent designed to support real-world IT operations workflows. It enforces diagnostics before remediation, requires explicit user approval for production-impacting changes, and produces clean outputs suitable for incident tickets.
+## 🔗 Links
 
-✨ Key Features
+- **Live Agent**: [Launch GPT](https://chatgpt.com/g/g-69441b1b5d0c81918300df5e63b0e079-ai-infrastructure-troubleshooting-agent)
+- **Showcase Site**: [GitHub Pages](https://elspaniard97.github.io/ai-agent-cirrascale/)
 
-Diagnostics-first workflow
+---
 
-Explicit remediation approval gate
+## 📋 Overview
 
-Structured troubleshooting across domains
+This project showcases a published ChatGPT GPT that mirrors real-world IT operational workflows:
 
-Ticket-safe copy/export
+- ✅ **Diagnostics first** (read-only, evidence-based)
+- ✅ **Explicit intent detection** before changes
+- ✅ **Human approval** before remediation
+- ✅ **Clear rollback** and validation guidance
 
-Modern, lightweight UI
+The repository contains a static GitHub Pages site used to document, demonstrate, and launch the agent.
 
-Secure backend deployment (no API keys in frontend)
+---
 
-🧠 Supported Domains
+## 🎯 Key Capabilities
 
-Networking
+### 🔹 Networking (Switches / Routers)
+- Interface errors, VLAN/trunk issues
+- STP, routing, MTU, packet loss
+- CLI output analysis (read-only first)
 
-Switch/router triage, VLANs, trunks, STP, routing, MTU, packet loss
+### 🔹 Server OS & Services
+- Linux / Windows diagnostics
+- CPU, memory, disk, services, logs
+- Connectivity, DNS, TLS, ports
 
-Server OS / Services
+### 🔹 Script & Automation Troubleshooting
+- PowerShell, Python, Bash
+- Ansible, Terraform, YAML/JSON
+- Stack traces, root cause analysis, corrected snippets
 
-Linux & Windows health, logs, CPU/memory/disk, services
+### 🔹 Hardware & Components
+- Vendor-aware triage (Dell / HPE)
+- iDRAC / iLO / IPMI alerts
+- PSU, thermals, RAID, memory (ECC)
+- Safe escalation and RMA guidance
 
-Scripts / Automation
+---
 
-PowerShell, Python, Bash, Ansible, Terraform, YAML/JSON
+## 🔄 How the Agent Works
 
-Hardware
+### 1. **Diagnostics Mode** (Default)
+- Asks clarifying questions
+- Analyzes logs, configs, scripts, or screenshots
+- Identifies likely root causes
+- Provides read-only verification commands only
+- Produces a remediation plan (but does not execute it)
 
-Dell iDRAC, HPE iLO, Supermicro IPMI, PSU, thermals, RAID, ECC
+### 2. **Intent Detection**
+The agent waits for explicit user intent such as:
+- "apply"
+- "fix"
+- "proceed"
+- "make the change"
+- "run it"
 
-🏗 Architecture Overview
-Browser (GitHub Pages)
-        |
-        | POST /api/chat
-        v
-Render Backend (Node.js)
-        |
-        v
-OpenAI API
+### 3. **Approval Gate**
+Before remediation, the agent requires confirmation of:
+- Production impact awareness
+- Maintenance window approval
+- Backup / restore availability
+- Rollback plan acceptance
 
-Frontend
+### 4. **Remediation Mode** (Only After Approval)
+- Step-by-step change instructions
+- Validation checks
+- Rollback/backout procedures
 
-Static site hosted on GitHub Pages
+---
 
-No secrets or API keys
+## 📁 Repository Structure
 
-Handles UX, approval toggle, exports, and presets
-
-Backend
-
-Node.js + Express
-
-Hosted on Render
-
-Stores OpenAI API key securely via environment variables
-
-Enforces diagnostics vs remediation logic
-
-🌐 Live URLs
-
-Frontend (GitHub Pages)
-https://elspaniard97.github.io/imbedded-csrma-ai-agent/
-
-Backend (Render)
-https://imbedded-csrma-ai-agent.onrender.com
-
-Health Check
-https://imbedded-csrma-ai-agent.onrender.com/healthz
-
-📂 Repository Structure
+```
 /
-├── index.html
+├── index.html              # Landing page
+├── capabilities.html       # Capabilities by domain
+├── workflow.html          # Process flow
+├── prompts.html           # Prompt library with filtering
+├── faq.html               # FAQ page
 ├── assets/
 │   ├── css/
-│   │   └── main.css
+│   │   └── main.css       # Consolidated styles (dark/light theme)
 │   └── js/
-│       └── app.js
-├── server/
-│   ├── server.js
-│   ├── package.json
-│   └── package-lock.json
-├── .gitignore
-└── README.md
+│       ├── main.js        # Main UI logic (consolidated)
+│       └── prompts.js     # Prompt filtering
+└── README.md              # This file
+```
 
-🚀 Frontend Setup (GitHub Pages)
-1. Ensure repo-root publishing
+---
 
-index.html must be in the repository root
+## 🚀 Using the Agent
 
-Assets referenced via relative paths (./assets/...)
+1. **Open the agent** using the [Launch Agent](https://chatgpt.com/g/g-69441b1b5d0c81918300df5e63b0e079-ai-infrastructure-troubleshooting-agent) button
 
-2. Enable GitHub Pages
+2. **Paste:**
+   - Logs
+   - CLI output
+   - Error messages
+   - Screenshots
+   - Full scripts (if needed)
 
-Repo → Settings → Pages
+3. **Review** diagnostics and proposed plan
 
-Source: Deploy from branch
+4. **Explicitly approve** remediation when ready
 
-Branch: main
+---
 
-Folder: / (root)
+## 🌐 GitHub Pages Deployment
 
-Save
+To host the showcase site:
 
-3. Set backend URL
+1. **Push all files** to the repository root
+2. Go to **Repository Settings → Pages**
+3. Set:
+   - **Source**: `main` branch
+   - **Folder**: `/` (root)
+4. **Save** and wait for Pages to deploy
 
-In index.html:
+The site will be available at:
+```
+https://[username].github.io/[repository-name]/
+```
 
-<script>
-  window.BACKEND_URL = "https://imbedded-csrma-ai-agent.onrender.com/api/chat";
-</script>
+---
 
-⚙️ Backend Setup (Render)
-1. Create Render Web Service
+## ✨ Features
 
-Environment: Node
+### Design
+- 🎨 Modern, clean interface with dark/light theme toggle
+- 📱 Fully responsive (mobile, tablet, desktop)
+- ♿ Accessible (ARIA labels, semantic HTML, keyboard navigation)
 
-Root directory: server
+### Functionality
+- 🔍 Search and filter prompt library
+- 📋 One-click copy for prompts and links
+- 🎯 Toast notifications for user feedback
+- 🔄 Smooth transitions and interactions
 
-Build command:
+### Code Quality
+- 📦 Consolidated CSS and JS (no duplicate files)
+- 🧹 Clean, maintainable codebase
+- 🚀 Optimized for GitHub Pages
+- 🔧 All features preserved from original versions
 
-npm install
+---
 
+## 🛠️ Technical Details
 
-Start command:
+### Technologies Used
+- **HTML5** - Semantic markup
+- **CSS3** - Custom properties (CSS variables), Grid, Flexbox
+- **Vanilla JavaScript** - No dependencies
+- **GitHub Pages** - Static site hosting
 
-npm start
+### Browser Support
+- Chrome/Edge (latest)
+- Firefox (latest)
+- Safari (latest)
+- Mobile browsers (iOS Safari, Chrome Mobile)
 
-2. Environment Variables
+---
 
-Add in Render dashboard:
+## 📝 License
 
-OPENAI_API_KEY=sk-xxxx
+This is a showcase site for a published GPT. The GPT itself is hosted on OpenAI's ChatGPT platform.
 
+---
 
-⚠️ Never commit API keys to GitHub
+## 🤝 Contributing
 
-🔍 Backend Endpoints
-Method	Endpoint	Description
-GET	/	Status message
-GET	/healthz	Health check
-POST	/api/chat	Main AI interaction
-🔐 Security Notes
+This is a personal showcase project. Feel free to fork and adapt for your own GPT projects!
 
-API keys live only in Render
+---
 
-Frontend uses no secrets
+## 📧 Contact
 
-Optional CORS lock:
-
-app.use(cors({
-  origin: "https://elspaniard97.github.io"
-}));
-
-🧭 Usage Workflow
-
-Select a preset (Network / Server / Script / Hardware)
-
-Paste logs, scripts, or describe the issue
-
-Run in Diagnostics mode
-
-Review findings
-
-Toggle Remediation Approved only if:
-
-Maintenance window exists
-
-Backups/restore points are available
-
-Rollback plan is acceptable
-
-Receive step-by-step remediation guidance
-
-🧾 Ticket-Safe Output
-
-Copy Ticket Notes → Clipboard-ready summary
-
-Export TXT → Human-readable transcript
-
-Export JSON → Structured incident record
-
-🧪 Local Development (Optional)
-cd server
-npm install
-npm run dev
-
-
-Then open index.html locally and point BACKEND_URL to http://localhost:10000/api/chat.
-
-🛣 Roadmap (Optional Enhancements)
-
-Secret redaction toggle
-
-Role-based approval (read-only vs approver)
-
-Incident ID + ticket system integration
-
-Streaming responses
-
-Dark/light theme toggle
-
-👤 Author
-
-Ezekiel Correa
-IT Infrastructure / Automation / AI-assisted Operations
-GitHub: https://github.com/elspaniard97
-
-📜 License
-
-MIT License (or update as needed)
+For questions about the AI Infrastructure Troubleshooting Agent, please use the feedback mechanisms within ChatGPT or visit the agent link above.
